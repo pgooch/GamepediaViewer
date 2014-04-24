@@ -283,7 +283,11 @@ $where = $_GET;
 			foreach($entries as $entry){
 				$game_count['filtered']++;
 				echo '<li>';
-					echo '<span class="title">'.$entry['ZTITLE'].'</span>';
+					if(trim($entry['ZDOGTAG'])!='') {
+						echo '<span class="title"><a href="http://doghouse.bruji.com/game/'.$entry['ZDOGTAG'].'">'.$entry['ZTITLE'].'</a></span>';
+					} else {
+						echo '<span class="title">'.$entry['ZTITLE'].'</span>';
+					}
 					if(trim($entry['ZEDITION'])!=''){echo '<span class="edition">'.$entry['ZEDITION'].'</span>'; }
 					if(trim($entry['ZPLATFORM'])!=''){echo '<span class="platform">'.$entry['ZPLATFORM'].'</span>'; }
 					echo '<div class="full" style="display:none;">';
