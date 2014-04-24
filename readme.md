@@ -14,7 +14,12 @@ Once you have updated and saved importer.php you can go to that page (ie yourawe
 There are some additional settings you can adjust in the index.php file, changing these should not be necessary but if your interested in modifying them here are some additional details of them. _Note: This only covers items that you would be likely to change, definitions or variables not listed below should probably not be changed.
 
 - `days_old_warning`, the number of days old the cache can be before a warning message and link to update appear.
-- `$full_details`, this is an array that contains a list of all the additional data you want to see when clicking on a title. The for may for this is simple `gamepd name` => `display label`. You can remove or re-order them as you want, however image should probably stay at the top or the layout can go a bit wonky. Additionally if you want to add a custom they are in there as `ZCUSTOM#` where the # is which custom field it is. You can have the system output a complete list of fields by uncommenting the raw output (line 332 at time of writing).
+- `use_doghouse`, Use the doghouse as the default detail source, if enabled inline details will only be shown for titles without a dogtag ID.
+- `$full_details`, this is an array that contains a list of all the additional data you want to see when clicking on a title. For the most part this is simply 'gamepd name' => 'display label', although some are special.
+	- Custom entries use 'ZCUSTOM#' as the gamepd name where # corresponds to which custom field it is. 
+	- IMAGE is a custom value, when used the script will generate the appropriate HTML code for an image with link to full size.
+	- ZDOGTAG will generate html for a link to the doghouse page for that specific title.
+	- There are several other column which are not included in the default list, you can have the system output a complete list of fields by uncommenting the raw output (line 332 at time of writing).
 
 ### Usage
 After setting up the viewer and loading the cache your ready to view your collection. The view should be pretty straight forward with the following sort and filter options:
@@ -25,7 +30,3 @@ After setting up the viewer and loading the cache your ready to view your collec
 - **Search** does a simple filter of the game title against whatever string your looking for.
 
 Clicking on a game title will open a dropdown with additional information and an image if available. The date the cache was last pulled, along with the number of titles in your collection and the current filter set, are shown at the bottom of the page.
-
-### Version History
-##### 1.0.0
-- Initial Release

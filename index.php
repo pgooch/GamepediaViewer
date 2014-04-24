@@ -3,6 +3,7 @@
 define('doghouse',1000000000);
 define('epoch_offset',(60*60*24*365.25*31)); // OSX epoch starts Jan 1 2001, so we need to determin how much to add
 define('days_old_warning',5); // How many days old can the cache be before a warning to update shows up.
+define('use_doghouse',false); // Have the list items directly link to doghouse pages instead of showing inline details
 
 // This contains all the fields that will show in the full detail popup, in the column => display_title format
 // Note that some of these are converted as needed, in general they are shown in the order they appear.
@@ -24,6 +25,7 @@ $full_details = array(
 	'ZCONDITION' => 'Condition',
 	'ZCOMMENTS' => 'Comments',
 	'ZSTATUS' => 'Status',
+	'ZDOGTAG' => 'special',
 );
 
 // Connect to the database;
@@ -201,6 +203,10 @@ $where = $_GET;
 				font-weight: 100;
 				text-align: center;
 			}
+			a {
+				color: #000;
+				text-decoration: none;
+			}
         </style>
 	</head>
 	<body>
@@ -283,57 +289,63 @@ $where = $_GET;
 			foreach($entries as $entry){
 				$game_count['filtered']++;
 				echo '<li>';
-					if(trim($entry['ZDOGTAG'])!='') {
-						echo '<span class="title"><a href="http://doghouse.bruji.com/game/'.$entry['ZDOGTAG'].'">'.$entry['ZTITLE'].'</a></span>';
-					} else {
-						echo '<span class="title">'.$entry['ZTITLE'].'</span>';
-					}
-					if(trim($entry['ZEDITION'])!=''){echo '<span class="edition">'.$entry['ZEDITION'].'</span>'; }
-					if(trim($entry['ZPLATFORM'])!=''){echo '<span class="platform">'.$entry['ZPLATFORM'].'</span>'; }
-					echo '<div class="full" style="display:none;">';
-						foreach($full_details as $db_key => $label){
-							if($db_key=='IMAGE'){$entry[$db_key]='special';}
-							if(trim($entry[$db_key])!=''){
-								$value = $entry[$db_key];
-								// Check the db_key and see if we need to do nay converting to the value
-								switch($db_key){
-									case 'ZSTATUS':
-										if($value!=1){
-											$label = '';
-										}else{
-											$label = 'Currently On Loan';
+					if(use_doghouse && trim($entry['ZDOGTAG'])!=''){
+						echo '<span class="title doghouse"><a href="http://doghouse.bruji.com/game/'.$entry['ZDOGTAG'].'" target="_blank">'.$entry['ZTITLE'].'</a></span>';						
+						if(trim($entry['ZEDITION'])!=''){echo '<span class="edition">'.$entry['ZEDITION'].'</span>'; }
+						if(trim($entry['ZPLATFORM'])!=''){echo '<span class="platform">'.$entry['ZPLATFORM'].'</span>'; }
+					}else{
+						echo '<span class="title inline"><a>'.$entry['ZTITLE'].'</a></span>';
+						if(trim($entry['ZEDITION'])!=''){echo '<span class="edition">'.$entry['ZEDITION'].'</span>'; }
+						if(trim($entry['ZPLATFORM'])!=''){echo '<span class="platform">'.$entry['ZPLATFORM'].'</span>'; }
+						echo '<div class="full" style="display:none;">';
+							foreach($full_details as $db_key => $label){
+								if($db_key=='IMAGE'){$entry[$db_key]='special';}
+								if(trim($entry[$db_key])!=''){
+									$value = $entry[$db_key];
+									// Check the db_key and see if we need to do nay converting to the value
+									switch($db_key){
+										case 'ZSTATUS':
+											if($value!=1){
+												$label = '';
+											}else{
+												$label = 'Currently On Loan';
+												$value = '';
+											}
+										break;
+										case 'ZCOMPLETED': // Convert to a single label
+											$label = ($value==1?'Completed':'Uncompleted');
+											$db_key .= ($value==1?' yes':' no');
 											$value = '';
-										}
-									break;
-									case 'ZCOMPLETED': // Convert to a single label
-										$label = ($value==1?'Completed':'Uncompleted');
-										$db_key .= ($value==1?' yes':' no');
-										$value = '';
-									break;
-									case 'ZRELEASEDATE': // Convert to logical date
-									case 'ZPURCHASEDON':
-									case 'ZDATEADDED':
-										$value = explode('.',$value);
-										$value = $value[0]+epoch_offset;
-										$value = date('m/d/Y',$value);
-										$label .= ':';
-									break;
-									case 'IMAGE':
-										$label = '<a href="'.$covers[$entry['ZUID']].'" target="_blank"><img data-src="'.$covers[$entry['ZUID']].'" src="./blank.gif" /></a>';
-										$value = '';
-									break;
-									default:
-										$value = trim($value);
-										$label .= ':';
-									break;
-								}
-								if($label!=''){
-									echo '<span class="'.$db_key.'"><b>'.$label.'</b>'.$value.'</span>';
+										break;
+										case 'ZRELEASEDATE': // Convert to logical date
+										case 'ZPURCHASEDON':
+										case 'ZDATEADDED':
+											$value = explode('.',$value);
+											$value = $value[0]+epoch_offset;
+											$value = date('m/d/Y',$value);
+											$label .= ':';
+										break;
+										case 'IMAGE':
+											$label = '<a href="'.$covers[$entry['ZUID']].'" target="_blank"><img data-src="'.$covers[$entry['ZUID']].'" src="./blank.gif" /></a>';
+											$value = '';
+										break;
+										case 'ZDOGTAG':
+											$label = '<a href="http://doghouse.bruji.com/game/'.$entry['ZDOGTAG'].'" target="_blank">View Doghouse Page</a>';
+											$value = '';
+										break;
+										default:
+											$value = trim($value);
+											$label .= ':';
+										break;
+									}
+									if($label!=''){
+										echo '<span class="'.$db_key.'"><b>'.$label.'</b>'.$value.'</span>';
+									}
 								}
 							}
-						}
-						//echo '<pre>'.print_r($entry,true).'</pre>'; /* Raw data, usefull for finding keys */
-					echo '</div>';
+							/* echo '<pre>'.print_r($entry,true).'</pre>'; /* Raw data, usefull for finding keys */
+						echo '</div>';
+					}
 				echo '</li>';
 			} ?>
 		</ol>
