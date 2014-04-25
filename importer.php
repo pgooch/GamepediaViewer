@@ -37,6 +37,6 @@ file_put_contents('Cache Last Pulled.txt',time()."\n".date('F jS, Y \s\t g:ia').
 Caching Complete.
 <script>
 setTimeout(function(){
-	window.location = '/';
+	window.location = 'index.php';
 },1234)
 </script>
