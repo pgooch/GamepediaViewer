@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<html manifest="./cache.manifest">
+<head>
+	<title>Gamepedia Viewer</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable = no">
+    <link rel="apple-touch-icon" href="./icon.png"/>
+    <link rel="shortcut icon" href="./icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes">
+	<link rel="stylesheet" href="./css/stylesheet.min.css" />
+</head>
+<body>
+	<div id="wrapper">
+		<!-- The search page -->
+		<div id="search">
+			<h1>Game Collection</h1>
+			<!-- The Filters Go here -->
+			<form id="filters">
+				<select name="platform">
+					<option value="">All Platforms</option>
+				</select>
+				<select name="entry_type">
+					<option value="A">All Owned</option>
+					<option value="1">On Loan</option>
+					<option value="0">On Hand</option>
+					<option value="2">Wishlist</option>
+				</select>
+				<input type="text" name="search" placeholder="Title Contains"/>
+				<!--<input type="submit" value="Filter" />
+				<input type="button" value="Settings" />
+				<div style="clear:both;"></div>-->
+			</form>
+			<!-- This is the loading message, appears when it's updating the DB -->
+			<div id="working-notice" style="height:0;">
+				<span class="message">Your working notice will go here...</span>
+			</div>
+			<!-- The results go here -->
+			<h2>Search Results</h2>
+			<h2 class="locked" style="display:none;">Search Results <a>&uarr;</a></h2>
+			<ul id="results" data-timestamp="0">
+				<li class="notice">Loading Database...</li>
+			</ul>
+			<!-- Simple footer to show last updated date -->
+			<div id="footer">
+				<p class="update-notice">Determine when database was last pulled...</p>
+				<div id="options">	
+					<b>Database Settings</b><br/>
+					<input type="button" name="startImport" value="Import Now" />
+					<input type="button" name="deleteDatabase" value="Delete Database" />
+					<br/>
+					<br/>
+					<b>Theme</b><br/>
+					<select name="theme">
+						<option value="">Day</option>
+						<option value="night">Night</option>
+						<option value="low_contrast">Low Contrast</option>
+					</select>
+				</div>
+				<br/>
+				<p>Gamepedia Viewer 2.0, fork it on GitHub.</p>
+				<br/>
+			</div>
+		</div>
+		<!-- The details. -->
+		<div id="details"><div class="loading">Loading Details...</div></div>
+	</div>
+	<!-- Image loader, kept off screen -->
+	<img id="image-loader" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Image Loader">
+	<!-- The scripts are here -->
+	<script src="./js/libraries.min.js"></script><!-- indexedDB.ship and jQuery -->
+	<script src="./gamepedia.settings.js"></script><!-- This is your JS settings file -->
+	<script src="./js/gamepedia.min.js"></script>
+</body>
+</html>

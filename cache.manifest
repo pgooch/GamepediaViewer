@@ -1,0 +1,14 @@
+CACHE MANIFEST
+# rev 201407271718
+
+CACHE:
+./css/stylesheet.min.css
+./gamepedia.settings.js
+./index.html
+./js/gamepedia.min.js
+./js/gamepedia.searcher.min.js
+./js/gamepedia.view.min.js
+./js/libraries.min.js
+
+NETWORK:
+*
