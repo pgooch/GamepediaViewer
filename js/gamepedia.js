@@ -332,7 +332,6 @@ function searchStressTest(times){
 		setTimeout(function(){
 			searches++;
 			var c = Math.round(Math.random()*25);
-			console.log('Search #'+searches+' : '+alpha[c]);
 			$('[name="search"]').val(alpha[c]).trigger('keyup');
 		},(i+1)*200);
 	}
@@ -342,7 +341,6 @@ function importStressTest(times){
 	for(i=0;i<times;i++){
 		setTimeout(function(){
 			imports++;
-			console.log('Import #'+imports);
 			$('[name="startImport"]').trigger('click');
 		},(i+1)*500);
 	}
@@ -354,7 +352,6 @@ function viewStressTest(times){
 			views++;
 			var item = $('li');
 			item = item[Math.round(Math.random()*item.length)];
-			console.log('View #'+views,item);
 			window.location.hash = $(item).find('a').attr('href');
 		},(i+1)*100);
 	}

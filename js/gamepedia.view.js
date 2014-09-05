@@ -47,7 +47,6 @@ onmessage=function(gameID){
 				}
 			}else{
 				for(key in _detailsPageSections){
-					console.log( key , ',' , game[key] );
 					if(game[key]!=null || typeof game[key]=='undefined'){
 						html += '<div class="detail '+key+'">';
 							if(_detailsPageSections[key]!=''){

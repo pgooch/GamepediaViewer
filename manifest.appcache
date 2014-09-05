@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# rev 201407271718
+# rev 201409051310hjkj
 
 CACHE:
 ./css/stylesheet.min.css
@@ -9,6 +9,8 @@ CACHE:
 ./js/gamepedia.searcher.min.js
 ./js/gamepedia.view.min.js
 ./js/libraries.min.js
+./icon.png
 
 NETWORK:
 *
+

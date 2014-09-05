@@ -25,7 +25,7 @@ preg_match_all('~<a href="([^"]+)" [^>]+ class="filename-link"~',$covers_page,$c
 $covers = array();
 foreach($covers_raw[1] as $g => $link){
 	$link_parts = explode('/',$link);
-	$covers[substr($link_parts[6],0,-4)] = $link.'?dl=1';
+	$covers[substr($link_parts[6],0,-9)] = substr($link,0,-1).'1';
 }
 
 // Save the file then open it up, might be able to skip saving, further research/testing needed
