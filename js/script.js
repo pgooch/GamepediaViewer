@@ -8,7 +8,7 @@
 var _source = {
 	'dropbox': {
 		'appKey': 't7a0jzeq04bg48c',
-		'oAuthRedirect': 'https://gamepediaviewer.dev/',
+		'oAuthRedirect': 'https://pgooch.github.io/GamepediaViewer/',
 	},
 	'static': {
 		//!\\ Trip the stuff and update the note accordingly, no need for all this to be in the repo, especially considering the size of the Covers list.
