@@ -3,17 +3,17 @@
 View your Gamepedia collection via Dropbox syncing. The best way to view your collection an any mobile device.
 
 ### Requirements
-A modern desktop or mobile browser and your collection synced with Dropbox. If you do not have your database synced you can find instructions on how to do that here: [http://www.bruji.com/help/gamepedia/configure/database.html](http://www.bruji.com/help/gamepedia/configure/database.html)). If you do not wish to sync your collection database with dropbox, you can fork the script and run your own copy that can use a local database file and covers directory. More instructions on that can be found in Setup below.
+A modern desktop or mobile browser and your collection synced with Dropbox. If you do not have your database synced you can find instructions on how to do that here: [http://www.bruji.com/help/gamepedia/configure/database.html](http://www.bruji.com/help/gamepedia/configure/database.html). If you do not wish to sync your collection database with dropbox, you can fork the script and run your own copy that can use a local database file and covers directory. More instructions on that can be found in Setup below.
 
 ### Example
 The newest version of Gamepedia Viewer does not need a server side component and connects with the Dropbox API. This means that you can view your database using the version of the viewer hosted here on GitHub. If you do not have your Gamepedia database synced with Dropbox then you will have the option of viewing a static copy of my database so you can still look around and see how the viewer works.
 
-The GitHub hosted version of the view can be found here: [https://pgooch.github.io/GamepediaViewer/]
+The GitHub hosted version of the view can be found here: [https://pgooch.github.io/GamepediaViewer/](https://pgooch.github.io/GamepediaViewer/)
 
 ### Setup
-No setup necessary, you can view your database or the example database on the view page here: [https://pgooch.github.io/GamepediaViewer/]. If you would like to fork this project and run your own copy then there is a little more to it.
+No setup necessary, you can view your database or the example database on the view page here: [https://pgooch.github.io/GamepediaViewer/](https://pgooch.github.io/GamepediaViewer/). If you would like to fork this project and run your own copy then there is a little more to it.
 
-If you are running your own copy, but still have your database synced with Dropbox so it's always up-to-date then you will need to change 2 settings in the js/scripts.js file and re-compile it. The scripts.js file is written using [https://babeljs.io/](babeljs), more infomration on transpiling bable to vanilla JS can be found [https://babeljs.io/docs/setup/](here). The part you will need to change is located in js/script.js at the top and controls Dropbox API key and oAuth return paths, as well as the static file location.
+If you are running your own copy, but still have your database synced with Dropbox so it's always up-to-date then you will need to change 2 settings in the js/scripts.js file and re-compile it. The scripts.js file is written using [babeljs](https://babeljs.io/), more infomration on transpiling bable to vanilla JS can be found [here](https://babeljs.io/docs/setup/). The part you will need to change is located in js/script.js at the top and controls Dropbox API key and oAuth return paths, as well as the static file location.
 
 ```
 var _source = {
