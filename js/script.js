@@ -7,7 +7,7 @@
 */
 var _source = {
 	'dropbox': {
-		'appKey': 't7a0jzeq04bg48c',
+		'appKey': 'ntx4wxyoxtd0m6d',
 		'oAuthRedirect': 'https://pgooch.github.io/GamepediaViewer/',
 	},
 	'static': {
