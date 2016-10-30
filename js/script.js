@@ -11,7 +11,6 @@ var _source = {
 		'oAuthRedirect': 'https://pgooch.github.io/GamepediaViewer/',
 	},
 	'static': {
-		//!\\ Trip the stuff and update the note accordingly, no need for all this to be in the repo, especially considering the size of the Covers list.
 		'file': 'static-data/Database.gamepd',
 		'covers': 'static-data/Covers/',
 		'note': 'This is a copy of my personal database from 10/29/16. You can use this is you don\'t have a dataset synced with dropbox and want to see the viewer in action.',
