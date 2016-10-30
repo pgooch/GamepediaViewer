@@ -1,0 +1,649 @@
+/*
+	Colors
+*/
+$c-bg: #fafafa; // the BG, close to but not quite white
+$c-gl: #dadada; // grey light
+$c-gd: #6a6a6a; // grey dark
+$c-sb: orange; // slate blue - from Bruji website
+$c-t:  orange; // teal - from Bruji website
+// colors in use
+$c-background: #fcfcfc;
+$c-link: mix($c-t,$c-sb);
+$c-link-hover: $c-t;
+
+/*
+	Basic Typography
+*/
+body{
+	font-family: 'helvetical', Sans-serif;
+	font-size: 18px;
+	line-height: 1.25em;
+	font-weight: 400;
+	background-color: $c-bg;
+}
+p, h1, h2, h3, h4{
+	padding-left:.25em;
+	padding-right:.25em;
+}
+a{
+	color: $c-link;
+	text-decoration: none;
+	&:hover{
+		color: $c-link-hover;
+		text-decoration: underline;
+	}
+}
+
+/*
+	Core Styles
+*/
+*{
+	box-sizing: border-box;
+	transition: background-color .25s border-color .25s color .25s text-shadow .25s box-shadow .25s;
+}
+body,html{
+	background-color: $c-background;
+	margin:0;
+	padding:0;
+}
+
+/*
+	No Javascript Error
+*/
+noscript{
+	font-size: 18px;
+	padding:1.5em;
+	display: block;
+	text-align: center;
+}
+
+/*
+	Loading Scren Styles
+*/
+body.loading{
+	#loading-screen{
+		display: block;
+	}
+}
+#loading-screen{
+	display: none;
+	position: fixed;
+	z-index: 9001;
+	top:0; right:0; bottom:0; left:0;
+	background-color: transparentize($c-background,.25);
+	> div{
+		width:0px;
+		height:0px;
+		border:100px solid orange; // should be yellow naturally
+		border-right-color:transparent;
+		border-radius:100px;
+		position: fixed;
+		top:50%;
+		left:50%;
+		margin-top:-100px;
+		margin-left:-100px;
+		animation-iteration-count:infinite;
+	    animation-duration: .5s;
+	    &.pac-a{
+			animation-name: loading-a;
+	    }
+	    &.pac-b{
+			animation-name: loading-b;
+	    }
+
+	}
+}
+@keyframes loading-a{
+	0%{
+		transform: rotate(0deg);
+	}
+	50%{
+		transform: rotate(46deg);
+	}
+	100%{
+		transform: rotate(0deg);
+	}
+}
+@keyframes loading-b{
+	0%{
+		transform: rotate(0deg);
+	}
+	50%{
+		transform: rotate(-46deg);
+	}
+	100%{
+		transform: rotate(0deg);
+	}
+}
+
+
+/*
+	Styles for the settings page
+*/
+#settings{
+	.settings-fields{
+		margin:0;
+		padding:0;
+		label{
+			display: inline-block;
+			width: 33.333%;
+			vertical-align:top;
+			padding:.25em;
+			@media (max-width: 550px){
+				width: 50%;
+			}
+			@media (max-width: 375px){
+				width: 100%;
+			}
+			input{
+				display: block;
+				width: 100%;
+				font-size: 1em;
+				padding: .125em;
+				margin-top: .125em;
+			}
+			&.checkbox{
+				width:100%;
+				input{
+					display: inline-block;
+					width:auto;
+				}
+			}
+		}
+	}
+	// Overrides for the dropbox ones that need more room to breath
+	.dropbox-settings{
+		label{
+			width:50%;
+			&.full{
+				width:100%;
+			}
+		}
+	}
+	#clear_dropbox_link{
+		display:block;
+		margin:1em auto;
+		font-size: 1em;
+	}
+}
+#container{
+	padding:0;
+	margin:0;
+	text-align: center;
+	max-width: 750px;
+    margin: 0px auto;
+    position: relative;
+}
+.select-source-page{
+	padding:0 1em;
+	.static-load-note{
+		display: block;
+		font-size:.9em;
+		font-style: italic;
+	}
+}
+
+/*
+	Listing View
+*/
+#list-view{
+	position: relative;
+	/*
+		Filters
+	*/
+	#filter-box{
+		padding: 5px 0 0 0;
+	    background-color: $c-bg;
+	    position: fixed;
+	    width: 100%;
+	    max-width: 750px;
+	    z-index: 110;
+	    box-shadow: 0px 0px 5px #fafafa;
+	    height: 75px;
+	    	label{
+			display: inline-block;
+			width:25%;
+			padding:.2em 1%;
+			vertical-align: top;
+			position: relative;
+			font-size:.75em;
+		    padding-bottom: 1em;
+			&:first-child{ // the search input
+				width:50%;
+			}
+			input, select{
+				display: block;
+				width: 100%;
+				font-size: 18px;
+			    padding: .2em;
+			    border-radius: 2px;
+			    border: 1px solid $c-gl;
+			    -webkit-appearance:none;
+			    background-color: #fff;
+			    box-shadow: inset 1px 2px 1px mix(#fff,$c-gl);
+			    outline-color: $c-t;
+			}
+		}
+	}
+	
+	/*
+		Listing View - Listings
+	*/
+	#title-list{
+		list-style: none;
+		text-align: left;
+	    padding: 80px 0 0 0; // Height of the filter-box plus a tad for looks
+	    margin: 0;
+		li{
+			padding:0;
+			border-top: 1px solid $c-gl;
+			border-bottom: 1px solid $c-gl;
+			text-shadow: 0px -1px 0px #fff;
+			margin-bottom: -1px;
+			position: relative;
+			
+			a{ // The link does all the spacing
+				padding:.75em;
+				cursor: pointer;
+				display: block;
+				color:inherit;
+			}
+
+			&:first-child{
+				border-top: 1px solid $c-gl;
+			}
+			&:hover{
+				background-color:mix($c-bg,$c-t,90);
+				border-bottom-color: mix($c-bg,$c-t);
+				border-top-color: mix($c-bg,$c-t);
+				z-index: 101
+			}
+			b{ // The titles
+				font-weight:500;
+				display: inline-block;
+				vertical-align: middle;
+			}
+			i{ // The edition
+				color: $c-gd;
+				padding-left: .25em;
+				font-size: .8em;
+				display: inline-block;
+				vertical-align: middle;
+	   		}
+	   		span.plat{ // Platform
+	   			float:right;
+			    margin-top: 1px;
+			    letter-spacing: -.05em;
+	 			color: $c-gd;
+	  		}
+		}
+	}
+}
+
+/*
+	Detail View
+*/
+h1{
+	text-align: center;
+	line-height: 1.1em;
+	i{
+		display: block;
+		color: $c-gd;
+		font-size:.8em;
+	}
+}
+.detail-items{
+	list-style: none;
+	padding:0;
+	margin:0;
+
+	li{
+		padding: 0m;
+		display: table-row;
+		text-align: left;
+		b,span{// Fake table styles
+			display: table-cell;
+   			padding: .75em;
+   			border-bottom: 1px solid $c-gl;
+		}
+		b{
+			white-space: nowrap;
+			padding-right:0;
+		}
+		span{
+			width: 100%;
+		}
+		&.hide-field{
+			display: none;
+		}
+	}
+
+}
+img.cover-image{
+    max-width: 100%;
+    margin: 1em 0;
+}
+
+/*
+	Settings Page Styles
+*/
+#settings{
+	text-align: left;
+	.reset-button{
+		font-size: 1.5em;
+	    display: block;
+	    margin: auto;
+	}
+}
+
+/*
+	For the footer
+*/
+#footer{
+	padding-top: .75em;
+	padding-bottom: 1.5em;
+	text-align: center;
+	.github-link{
+		font-size:.8em;
+	}
+	.nav-links{
+		a{
+			padding-left: .25em;
+			padding-right: .25em;
+			display: inline-block;
+		}
+	}
+}
+//					
+//					/*
+//						Core Styles
+//					*/
+//					*{
+//						box-sizing: border-box;
+//						transition: background-color .25s border-color .25s color .25s text-shadow .25s box-shadow .25s;
+//					}
+//					body,html{
+//						background-color: $c-background;
+//						margin:0;
+//						padding:0;
+//					}
+//					#container{
+//						max-width:800px;
+//						margin:0 auto;
+//						padding:1vh 2vw 3vh 2vw;
+//						overflow: hidden;
+//					}
+//					
+//					/*
+//						No Javascript Error
+//					*/
+//					noscript{
+//						font-size: 18px;
+//						padding:1.5em;
+//						display: block;
+//						text-align: center;
+//					}
+//					
+//					/*
+//						Loading Screen
+//					*/
+//					body.loading{
+//						#loading-screen{
+//							display: block;
+//						}
+//					}
+//					#loading-screen{
+//						display: none;
+//						position: fixed;
+//						top:0; right:0; bottom:0; left:0;
+//						background-color: transparentize($c-background,.25);
+//						font-family: 'Press Start 2P', monaco, monospace;
+//						letter-spacing: -.025em;
+//						font-size: 32px; // This should be full width on an iPhone 5, but in the bottom corner on other mobile browsers.
+//						text-shadow: 0px 1px 1px rgba(0,0,0,.5);
+//						> div{
+//							position: absolute;
+//							text-align: right;
+//							width:100%;
+//							right:0; bottom:0 ;
+//						    padding: .5em;
+//							span{
+//							    position: relative;
+//							    animation-name: loading;
+//								animation-iteration-count:infinite;
+//					            transition-timing-function: cubic-bezier(0.1, 0.7, 0.7, 0.1);
+//					            $animation-length: 3s;
+//							    animation-duration: $animation-length;
+//					            @for $i from 1 through 10{
+//									&:nth-child(#{$i}){
+//										animation-delay: #{($animation-length/15)*$i};
+//									}
+//								}
+//								&:nth-child(8),&:nth-child(9),&:nth-child(10){
+//									letter-spacing: -.25em;
+//								}
+//							}
+//						}
+//					}
+//					@keyframes loading{
+//						0%{
+//							top:0em;
+//						}
+//						10%{
+//							top:-1em;
+//						}
+//						20%{
+//							top:0em;
+//						}
+//					}
+//					
+//					/*
+//						Basic Typography
+//					*/
+//					body{
+//						font-family: 'helvetical', Sans-serif;
+//						font-size: 18px;
+//						line-height: 1.25em;
+//						font-weight: 200;
+//					}
+//					p{
+//						padding-left:1em;
+//						padding-right:1em;
+//					}
+//					a{
+//						color: $c-link;
+//						text-decoration: none;
+//						&:hover{
+//							color: $c-link-hover;
+//							text-decoration: underline;
+//						}
+//					}
+//					
+//					/*
+//						Link Page
+//					*/
+//					.source-link{
+//						display: block;
+//						text-align: center;
+//						> a{
+//							font-size: 1.5em;
+//						}
+//						.static-load-note{
+//							display: block;
+//							padding-left:10%;
+//							padding-right:10%;
+//							font-size:.8em;
+//							text-align: left;
+//							padding-top:.4em;
+//							font-style: italic;
+//							color: $c-gd
+//						}
+//					}
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//	/*
+//		Styles for the main view
+//	*/
+//	#title-list{
+//		list-style: none;
+//		margin:0 1%;
+//		padding:4.3em 1% 0 1%;
+//		li{
+//			padding:.75em 1%;
+//			border-top: 1px solid $c-gl;
+//			border-bottom: 1px solid $c-gl;
+//			cursor: pointer;
+//			text-shadow: 0px -1px 0px #fff;
+//			margin-bottom: -1px;
+//			position: relative;
+//			&:first-child{
+//				border-top: 1px solid $c-gl;
+//			}
+//			&:hover{
+//				background-color:mix($c-bg,$c-t,90);
+//				border-bottom-color: mix($c-bg,$c-t);
+//				border-top-color: mix($c-bg,$c-t);
+//				z-index: 101
+//			}
+//			b{ // The titles
+//				font-weight:500;
+//				display: inline-block;
+//				vertical-align: middle;
+//			}
+//			i{ // The edition
+//				color: $c-gd;
+//				padding-left: .25em;
+//				font-size: .8em;
+//				display: inline-block;
+//				vertical-align: middle;
+//	   		}
+//	   		span.plat{ // Platform
+//	   			float:right;
+//			    margin-top: 1px;
+//			    letter-spacing: -.05em;
+//	 			color: $c-gd;
+//	  		}
+//		}
+//	}
+//	// Special thing, if a platform is selected there is no need to show it in the listing
+//	#title-list.platformed li span.plat{
+//		display: none;
+//	}
+//	// The filter box
+//	#filter-box{
+//		padding: .5em 2% 0 2%;
+//		background-color: $c-bg;
+//	    position: fixed;
+//	    display: block;
+//	    max-width: 800px;
+//	    width: 100%;
+//	    z-index: 110;
+//	    box-shadow: 0px 0px 5px $c-bg;
+//	
+//		label{
+//			display: inline-block;
+//			width:25%;
+//			padding:.2em 1%;
+//			vertical-align: top;
+//			position: relative;
+//			font-size:.75em;
+//		    padding-bottom: 1em;
+//			&:first-child{ // the search input
+//				width:50%;
+//			}
+//			input, select{
+//				display: block;
+//				width: 100%;
+//				font-size: 18px;
+//			    padding: .2em;
+//			    border-radius: 2px;
+//			    border: 1px solid $c-gl;
+//			    -webkit-appearance:none;
+//			    background-color: #fff;
+//			    box-shadow: inset 1px 2px 1px mix(#fff,$c-gl);
+//			    outline-color: $c-t;
+//			}
+//		}
+//	}
+//	// And there is some re-positioning if the screen is less than 540px wide
+//	@media (max-width: 540px){
+//		#filter-box{
+//			label{
+//				width:50%;
+//				padding-bottom:.25em;
+//			}
+//			label:first-child{
+//				width: 100%;
+//				padding-bottom:.25em;
+//			}
+//		}
+//		#title-list{
+//		    padding: 7.25em 2% 0 2%;
+//		}
+//	}
+//	
+//	/*
+//		Styles for Title View
+//	*/
+//	h1{
+//		text-align: center;
+//		i{
+//			display: block;
+//			color: $c-gd;
+//			font-size:.8em;
+//		}
+//	}
+//	#title-details-list{
+//		list-style: none;
+//		padding:0;
+//		margin:0;
+//	
+//		li{
+//			padding: .25em;
+//			display: table-row;
+//			b,span{// Fake table styles
+//				display: table-cell;
+//	   			padding: .75em 0.5em;
+//	   			border-bottom: 1px solid $c-gl;
+//			}
+//			b{
+//				white-space: nowrap;
+//				text-align: right;
+//				padding-right:0;
+//			}
+//		}
+//	
+//		.missing-field-show{
+//			color: mix($c-gl,$c-gd);
+//		}
+//	}
+//	
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
+//					
