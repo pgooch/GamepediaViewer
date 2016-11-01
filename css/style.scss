@@ -241,6 +241,17 @@ body.loading{
 			text-shadow: 0px -1px 0px #fff;
 			margin-bottom: -1px;
 			position: relative;
+
+			&.no-results{
+				border: none!important;
+			    text-align: center;
+			    padding: .5em 1em 1.5em 1em;
+			    font-style: italic;
+			    &:hover{
+			    	background-color: transparent;
+			    	border:none;
+			    }
+			}
 			
 			a{ // The link does all the spacing
 				padding:.75em;
@@ -277,6 +288,45 @@ body.loading{
 	 			color: $c-gd;
 	  		}
 		}
+	}
+}
+
+/*
+	Pagination block
+*/
+#pagination{
+	padding:1em;
+
+	.pagination-line{
+		padding:0 .5em;
+	}
+
+	.pagination-link{
+		padding: .5em 1em;
+	    display: inline-block;
+	    background: mix($c-bg,$c-gl,75);
+	    border:1px solid $c-gl;
+	    border-radius: 5px;
+	    cursor: pointer;
+	    &.disable{
+	    	opacity: .5;
+	    }
+	    &:not(.disable){
+		    &:hover{
+				background-color:mix($c-bg,$c-t,90);
+				border-color: mix($c-bg,$c-t);
+		    }
+		    &:active{
+				background-color:mix($c-bg,$c-t,60);
+				border-color: mix($c-bg,$c-t);
+		    }
+		}
+	    &.prev{
+	    	float:left;
+	    }
+	    &.next{
+	    	float:right;
+	    }
 	}
 }
 

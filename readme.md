@@ -39,6 +39,22 @@ The button at the bottom of the page will reset the source, you will be asked to
 ### Usage
 Once you have set up your Dropbox connection or loaded a static database you will be brought to the titles list, filter it by platform, status (on hand, on loan, or on your whishlist) and view a details page for each title. The filter controls will stick to the top of the list and should be reset when you return to the viewer.
 
+### Version History
+
+##### Version 3.0.1 - Oct 31, 2016
+- Improvments to the stability on mobile by reducing redundent renders
+- Added pagination for increase performance
+- Additional web-app settings were enabled
+
+##### Version 3.0 - Oct 29, 2016
+- Initial V3 Release
+
+##### Version 2.0 - Aug 22, 2015
+- V2, with added support for viewing your collection while offline
+- 
+##### Version 2.0 - Apr 23, 2014
+- The initial version, it worked, nothing fancy
+
 ### Previous Version
 If this newest version does not work for you, or you simply prefer one of the older ones, you can still find them:
 - Version 1.0 branch located here: [https://github.com/pgooch/GamepediaViewer/tree/Version-1.0](https://github.com/pgooch/GamepediaViewer/tree/Version-1.0)

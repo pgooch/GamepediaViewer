@@ -83,14 +83,36 @@ var _pediaviewerConst = {
 }
 var _db = {'hasNotBeenLoaded':true};
 var _platforms = [];
-var _currentListPosition = window.scrollY;
+
 // We are going to want to update this value so we can reset the position after the load (since the load tie can mess with the browsers normal position returning)
+var _currentListPosition = window.scrollY;
 window.onscroll = function(){
 	// We only want to update this on the listing view and only if it is not loading
 	if(window.location.hash.replace('#','')=='' && document.body.className==''){
 		_currentListPosition=window.scrollY
 	}
 };
+
+// Prep some stuff for the pagination system
+var _totalTitleCount = 0;
+try{
+	var _resultsPerPage = JSON.parse(localStorage['pagination']);
+	_resultsPerPage = _resultsPerPage.results_per_page
+}catch(e){
+	var _resultsPerPage = 50;
+}
+var _currentPage = 1;
+
+// We want to prevent multiple rapidly firing renders, especially on the test filter, as it kills mobile (the SQL isn't exactly light) these do that
+var _lastUpdateAttempt = 0;
+var _preventRapidUpdates = function(){
+	if(Date.now()-_renderDelay>=_lastUpdateAttempt){
+		return true;
+	}else{
+		return false;
+	}
+}
+var _renderDelay = 333; // This is the ammount of time allowed between presses before it decides to render, to long feels wird, to short and you render a ton causing issues on mobile
 
 /*
 	//!\\ These are just some pre-check while things are being developed and do not really need to be messed with (but should be gone by the time this gets put into gituhb).
@@ -290,6 +312,12 @@ function loadDatabase(callback){
 				_platforms.push(platforms[0]['values'][pn][0]);
 			}
 
+			// Get the total title count
+			var query = _db.prepare('select count("a") as "entries" from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' group by("a") COLLATE NOCASE');
+			query.step();
+			_totalTitleCount = query.getAsObject().entries;
+
+
 			// IF we have a callback then call it
 			if(typeof callback == 'function'){
 				callback();
@@ -383,7 +411,8 @@ var MainView = React.createClass({
 				'search': '',
 				'platform': '~All',
 				'list': '0,1',
-			}
+			},
+			'pg': _currentPage,
 		}
 
 		// Check the localStorage for some saved filters
@@ -397,24 +426,50 @@ var MainView = React.createClass({
 		// Return the state
 		return state
 	},
+	
 	// Update the filters (they propagate up to this directly).
 	updateFilter: function(e){
+
 		// Get the state so we can modify it at a deeper level
 		var state = this.state
-		// update the state
+
+		// update the state, including reseting the page number
 		state.filters[e.target.id] = e.target.value;
+		state.pg = 1;
+		_currentPage = 1;
+
 		// Update the localStorage of the state
 		localStorage['current_filters'] = JSON.stringify(state.filters);
+		
 		// Finally set the state
+		_lastUpdateAttempt = Date.now();
 		this.setState(state);
+
+		// Wait the predetermined amount of time then try and render again, only the last one should fire
+		setTimeout(function(){
+			this.forceUpdate();
+		}.bind(this),_renderDelay);
 	},
+	
+	// Change the page for pagination, simple state update really
+	changePage: function(pg,total){
+		if(pg>0&&pg<=total){
+			var state = this.state
+			state['pg'] = pg;
+			_currentPage = pg;
+			window.scroll(0,0);
+			this.setState(state); 
+		}
+	},
+	
 	// The renderer, obviously, renders
 	render: function(){
 		return (<div>
 			<div id="list-view">
 				<Filter updateFilter={this.updateFilter} filters={this.state.filters} />
-				<List filters={this.state.filters} />
+				<List filters={this.state.filters} page={this.state.pg} />
 			</div>
+			<Pagination page={this.state.pg} changePage={this.changePage} filters={this.state.filters} />
 			<Footer />
 		</div>);
 	},
@@ -449,7 +504,7 @@ var Filter = React.createClass({
 				</select>
 			</label>
 		</div>);
-	}
+	},
 });
 /*
 	This contains the actual table listing out the items in it. Note that no all fiels are pulled only the ones were actually going to use, 
@@ -471,36 +526,54 @@ var List = React.createClass({
 		}
 
 	},
-	
+
 	render: function(){
 		
 		// I can't seem to find a built-in escape, so I guess I'll do something a little quick and ugly
 		var term = this.props.filters.search.replace(/([\[\]&_\\/%])/g,'\\$1');
 		var platform = this.props.filters.platform.replace(/([\[\]&_\\/%])/g,'\\$1');
 		var list = this.props.filters.list.replace(/([\[\]&_\\/%])/g,'\\$1');
-		
+
+		// Get the number of results per page
+		try{
+			var resultsPerPage = JSON.parse(localStorage['pagination']);
+			resultsPerPage = resultsPerPage.results_per_page
+		}catch(e){
+			// must have errored, probably not there, use the default
+			var resultsPerPage = 50;
+		}
+
 		// Prepare the DB call, turn the results into something we can map
-		var query = _db.prepare('select `ZUID`,`ZCOMPLETED`,`ZTITLE`,`ZEDITION`,`ZPLATFORM` from `ZENTRY` where `ZTITLE` like "%'+term+'%" escape "\\" '+(platform!='~All'?' and  `ZPLATFORM` = "'+platform+'"':'')+' and `ZSTATUS` in('+list+') and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZTITLE` COLLATE NOCASE');
+		var query = _db.prepare('select `ZUID`,`ZCOMPLETED`,`ZTITLE`,`ZEDITION`,`ZPLATFORM` from `ZENTRY` where `ZTITLE` like "%'+term+'%" escape "\\" '+(platform!='~All'?' and  `ZPLATFORM` = "'+platform+'"':'')+' and `ZSTATUS` in('+list+') and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZTITLE` COLLATE NOCASE limit '+((this.props.page-1)*resultsPerPage)+', '+resultsPerPage);
 		var results = [];
 		while(query.step()){
 			results.push( query.getAsObject( ));
     	}
-        
-        // return the list
-        // OLD for function opner:  onClick={(event) => this.openDetailsPage(event,result)}
-		return (<ul id="title-list" className={this.props.filters.platform!='~All'?'platformed':''} >
-			{results.map(function(result){
-				return (<li key={result.ZUID} className={result.ZCOMPLETED==1?'completed':''}>
-					<a href={'#title-'+result.ZUID+'-'+result.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')}>
-						<b>{result.ZTITLE}</b>
-						<i>{result.ZEDITION}</i>
-						<span className="plat">{result.ZPLATFORM}</span>
-						<div style={{'clear':'both'}}></div>
-					</a>
-				</li>)
-			}.bind(this))}
-		</ul>);
-	}
+
+    	// Resnder out a no results found message
+    	if(results.length==0){
+	        // return the list
+			return (<ul id="title-list">
+				<li className="no-results">No results were found matching your current filter criteria.</li>
+			</ul>);
+		// do the normal results render
+    	}else{
+	        // return the list
+			return (<ul id="title-list" className={this.props.filters.platform!='~All'?'platformed':''} >
+				{results.map(function(result){
+					return (<li key={String(result.ZUID)} className={result.ZCOMPLETED==1?'completed':''}>
+						<a href={'#title-'+result.ZUID+'-'+result.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')}>
+							<b>{result.ZTITLE}</b>
+							<i>{result.ZEDITION}</i>
+							<span className="plat">{result.ZPLATFORM}</span>
+							<div style={{'clear':'both'}}></div>
+						</a>
+					</li>)
+				}.bind(this))}
+			</ul>);
+    	}
+	},
+	shouldComponentUpdate: _preventRapidUpdates,
 });
 
 /*
@@ -509,11 +582,6 @@ var List = React.createClass({
 var Footer = React.createClass({
 	render: function(){
 
-		// Get the total number of titles in your collection.
-		var query = _db.prepare('select count("a") as "entries" from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' group by("a") COLLATE NOCASE');
-		query.step();
-		var titleCount = query.getAsObject().entries;
-
 		// Get the last title added (for funsies)
 		var query = _db.prepare('select * from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZUID` desc limit 1');
 		query.step();
@@ -521,7 +589,7 @@ var Footer = React.createClass({
 
 		// REturn the stimple footer
 		return (<div id="footer">
-			<p className="entries-line">Currently {titleCount} in collection.</p>
+			<p className="entries-line">Currently {_totalTitleCount} in collection.</p>
 			<p className="nav-links">
 				<a href="#" className="footer-link">Main List</a>
 				 &ndash; 
@@ -531,7 +599,36 @@ var Footer = React.createClass({
 			</p>
 			<p><a href="https://github.com/pgooch/GamepediaViewer" className="github-link" target="_blank">Fork Gamepedia Viewer on GitHub.</a></p>
 		</div>);
-	}
+	},
+	shouldComponentUpdate: function(){return false},
+});
+
+/*
+	The footer, used on both the list and details view, at the bottom.
+*/
+var Pagination = React.createClass({
+	render: function(){
+
+		// Determine the number of pages in the current filter, bits ripped from the main list renderer
+		var term = this.props.filters.search.replace(/([\[\]&_\\/%])/g,'\\$1');
+		var platform = this.props.filters.platform.replace(/([\[\]&_\\/%])/g,'\\$1');
+		var list = this.props.filters.list.replace(/([\[\]&_\\/%])/g,'\\$1');
+		var query = _db.prepare('select count("a") as "entries" from `ZENTRY` where `ZTITLE` like "%'+term+'%" escape "\\" '+(platform!='~All'?' and  `ZPLATFORM` = "'+platform+'"':'')+' and `ZSTATUS` in('+list+') and `ZUID`<'+_pediaviewerConst.doghouseIDStart);
+		query.step();
+		var filteredResults = query.getAsObject().entries;
+
+		// Determine the total number of pages
+		var _totalPages = Math.ceil(filteredResults/_resultsPerPage);
+
+		// Return
+		return (<div id="pagination">
+			<span onClick={()=>this.props.changePage(this.props.page-1,_totalPages)} className={'pagination-link prev '+(this.props.page<=1?'disable':'')}>Prev</span>
+			<span className="pagination-line">Page {this.props.page} of {Math.max(1,_totalPages)}</span>
+			<span onClick={()=>this.props.changePage(this.props.page+1,_totalPages)} className={'pagination-link next '+(this.props.page>=_totalPages?'disable':'')}>Next</span>
+			<div style={{clear:'both'}}></div>
+		</div>);
+	},
+	shouldComponentUpdate: _preventRapidUpdates,
 });
 
 /*
@@ -563,7 +660,6 @@ var SettingsView = React.createClass({
 
 	// This will update the localStorage (and hence the settings) with the new values
 	updateSettings: function(e){
-
 		// Get the state
 		var state = this.state
 
@@ -588,7 +684,6 @@ var SettingsView = React.createClass({
 		// Update the save data and then save it
 		saveData[key] = saveValue
 		state[saveAs][key] = saveValue;
-		console.log(saveData);
 		localStorage[saveAs] = JSON.stringify(saveData);
 
 		// and update the state
@@ -632,6 +727,17 @@ var SettingsView = React.createClass({
 				</label>
 			</div>
 
+			<h2>Pagination</h2>
+			<p className="setting-note">
+				How many results show per page. This number can be set to something artifically high to show everything on a single page, however mobile devices tend to become unstable with higher values
+			</p>
+			<div className="settings-fields">
+				<label htmlFor="pagination-results_per_page">
+					Results Per Page
+					<input type="number" min="1" step="1" name="pagination-results_per_page" id="pagination-results_per_page" defaultValue={(this.state.pagination==undefined?50:this.state.pagination.results_per_page)} onChange={this.updateSettings} />
+				</label>
+			</div>
+
 			<h2>Change Data Source</h2>
 			<p className="setting-note">
 				If you would like to chage the data source from the currently selected {localStorage.database_source} one you can do so by click the button below.
@@ -643,6 +749,10 @@ var SettingsView = React.createClass({
 			<Footer />
 
 		</div>);
+	},
+	// We don't actually need to update the interface, the user is going to be doing a pretty good job of that on their own and preventing the re-render will make things smoother
+	shouldComponentUpdate: function(){
+	    return false;
 	},
 	componentDidMount: componentDidMountGlobal,
 });
