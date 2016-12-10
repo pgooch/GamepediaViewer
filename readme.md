@@ -41,6 +41,10 @@ Once you have set up your Dropbox connection or loaded a static database you wil
 
 ### Version History
 
+##### Version 3.1 - Dec 10, 2016
+- Improved performance by caching the database into the indexed DB, this should also make it possible to re-intriduce offline mode in the future.
+- Removed the pagination added in the last version, since it was only added for perfomance reasons.
+
 ##### Version 3.0.1 - Oct 31, 2016
 - Improvments to the stability on mobile by reducing redundent renders
 - Added pagination for increase performance

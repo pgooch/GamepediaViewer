@@ -16,6 +16,9 @@ var _source = {
 		'note': 'This is a copy of my personal database from 10/29/16. You can use this is you don\'t have a dataset synced with dropbox and want to see the viewer in action.',
 	}
 }
+
+
+
 /*
 	Field Data
 
@@ -69,8 +72,10 @@ var _fieldData = {
 	'ZDATEADDED'		:{'name':'Date Added'	,'display':'datetime'	},
 	'ZDATEEDITED'		:{'name':'Date Edited'	,'display':'datetime'	},
 	// The conver will always show at the bottom of the page (because it requires a second load and can be a bit slow.)
+};
 
-}
+
+
 /*
 	Gamepeida Viewer Constants and Varibles
 
@@ -78,146 +83,175 @@ var _fieldData = {
 	They also contain varibles that are populated on initialization that should be left blank.
 */
 var _pediaviewerConst = {
-	'doghouseIDStart': 1000000000,
-	'macEpochOffset': 978307200*1000, // OSX uses a different epoch because it wants to be special
-}
-var _db = {'hasNotBeenLoaded':true};
-var _platforms = [];
-
-// We are going to want to update this value so we can reset the position after the load (since the load tie can mess with the browsers normal position returning)
-var _currentListPosition = window.scrollY;
-window.onscroll = function(){
-	// We only want to update this on the listing view and only if it is not loading
-	if(window.location.hash.replace('#','')=='' && document.body.className==''){
-		_currentListPosition=window.scrollY
-	}
+	'doghouseIDStart': 1000000000, // doughouse items are in the main ID with a very large ID, at least this large in fact
+	'macEpochOffset': 978307200*1000, // OSX uses a different epoch because it wants to be special, this is the adjustment
 };
-
-// Prep some stuff for the pagination system
-var _totalTitleCount = 0;
-try{
-	var _resultsPerPage = JSON.parse(localStorage['pagination']);
-	_resultsPerPage = _resultsPerPage.results_per_page
-}catch(e){
-	var _resultsPerPage = 50;
+var _goBackTo = ''; // This is a hash that we are retuned to after caching is done (if needed).
+var _extraDetails = { // This we re gonna store in localStorage (which the init function till take care of re-loading) so we don't have to re-get them.
+	'platforms': [], // This just stored an ordered list of the platforms
+	'titleCount': 0, // How many you got?
+	'latestTitle': -1, // The ID of the newest title added (not latest updated like it was doing)
 }
-var _currentPage = 1;
 
-// We want to prevent multiple rapidly firing renders, especially on the test filter, as it kills mobile (the SQL isn't exactly light) these do that
-var _lastUpdateAttempt = 0;
-var _preventRapidUpdates = function(){
-	if(Date.now()-_renderDelay>=_lastUpdateAttempt){
-		return true;
-	}else{
-		return false;
+/*
+	The scroll position for the main listing needs to be saved in order to restore it once we return to the list view.
+*/
+var scrollPos: 0; 
+var scrollLock: false;
+window.onscroll = function(){
+	if(window.location.hash=='' && !scrollLock){
+		scrollPos = window.scrollY;
 	}
 }
-var _renderDelay = 333; // This is the ammount of time allowed between presses before it decides to render, to long feels wird, to short and you render a ton causing issues on mobile
+
+
 
 /*
-	//!\\ These are just some pre-check while things are being developed and do not really need to be messed with (but should be gone by the time this gets put into gituhb).
+	Index and SQL Database varibles
+
+	The data for Gamepedia is stored in an SQL database. This is then pulled from the location provided or dropbox and 
+	moved inted the browsers indexedDB in order to both cache it for offline use and for performance reasons (the SQL is 
+	not particularly fast and does test to be rather RAM heavy, especially on mobile devices).
 */
-//	console.log(_source);
-//	console.log(_pediaviewerConst);
-//	console.log(_fieldData);
-//	console.log(''); console.log(''); console.log('');
+var _sqlDB = {};
+var _indexedDBDetails = {
+	'databaseName': 'GamepediaViewer3',
+	'version': 1, // The database version, not the viewers
+	'lastUpdated': 958867200000-_pediaviewerConst.macEpochOffset, // This is a value that will be stored in localStorage, the init will update this. It's used so we don't re-cache everything when a delta will do
+};
+var _databasePreped = false; // We need to know if it's been prepped before we can go and load it
+var _databaseChecked = false; // This is the one stop show on whether or not the DB has been updated this session.
+var _indexedDB = {'request':{},'database':{}};
+// And to make sure everything is looking at the correct part, some translations (vendor prefixed suck)
+if(window.indexedDB==undefined){window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;}
+if(window.IDBTransaction==undefined){window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;}
+if(window.IDBKeyRange==undefined){window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange}
+
+
 
 /*
-	This is the hash watcher, it watches the hash for changes and does stuff when it changes.
+	IndexDB functions
+
+	This checks for or creates the database as needed so we know we are ready for the database.
+*/
+
+// open the database
+_indexedDB.request = window.indexedDB.open(_indexedDBDetails.databaseName,_indexedDBDetails.version);
+
+// This is the error, for now just have it throw a javascript alert
+_indexedDB.request.onerror = function(e){
+	alert('There was an error with an indexedDB database request. Check the console.log for the event details');
+	console.log('error event',e);
+	console.log('indexedDB request',_indexedDB.request);
+}
+
+// Ona  good load we can fire of the inir function and get things started.
+_indexedDB.request.onsuccess = function(){
+	_indexedDB.database = _indexedDB.request.result;
+	init();
+}
+
+// For upgrading (or creating the initial)
+_indexedDB.request.onupgradeneeded = function(e){
+	e.target.result.createObjectStore('titles',{'keyPath':'ZUID'}).createIndex('sortTitle','sortTitle');
+}
+
+
+
+/*
+	Hashwatcher
+
+	This will watch the has for a change and call the appropirate React parts based on that
 */
 function hashWatcher(){
-	// We are going to look at the hash before any numbers (because titles use nubmers after the part we don't care about)
+	// Make sure the loading screen is active (it probably will be or this will be short enough for the browser to not actually update in time).
 	document.body.className = 'loading';
-	// We put this in a super fast timeout so the brower has a moment to add the class before it gets distracted working on the render
-	setTimeout(function(){
-		switch(window.location.hash.substr(1).split(/-?\d+/)[0]){
+	scrollLock = true; // We don't want the initial scroll to overrite the saves scroll position. This is reset in the componentDidMountGlobal function
+
+	// Pre-clean the hash
+	var cleanedHash = window.location.hash.substr(1).split(/(-?\d+|=)/)[0];
+
+	// Initially there will be no hash, but if we also have no data then change that before bothing looking for a page
+	if(cleanedHash!='access_token' && window.location.hash.substr(0,8)!='#prepare' && window.location.hash!='#select-source' && localStorage['database_source']==undefined){
+		window.location.hash = 'select-source';
+
+	// otherwise lest find the page we want
+	}else{
+		// This switch breaks things into two groups, the first is pages used during setup (that do not require any DB stuff), the second is pages used during... use, which do.
+		switch(cleanedHash){
+			// This is what is returned by dropbox oauth
+			case 'access_token':
+				var hash = window.location.hash.substr(1).split('&');
+				hash = hash[0].split('=');
+				localStorage['dropbox_access_token'] = hash[1];
+				localStorage['database_source'] = 'dropbox';
+				// Re-call the init function now with the localStorage data is needs to get past this part
+				window.location.hash = '';
+			break;
+			// This is the pages used during initial setup
 			case 'select-source':
 				ReactDOM.render(<SelectSource />,document.getElementById('container'));
 			break;
-			case 'load-dropbox':
-				prepareDropbox();
-			break;
-			case 'load-static':
-				prepareStatic();
-			break;
+			// These are the ones that need the DB, the main view pages
 			case '':
-				loadDatabase(function(){
-					ReactDOM.render(<MainView />,document.getElementById('container'));
-				});
-			break;
 			case 'title':
-				loadDatabase(function(){
-					ReactDOM.render(<DetailView />,document.getElementById('container'));
-				});
-			break;
 			case 'settings':
-				loadDatabase(function(){
-					ReactDOM.render(<SettingsView />,document.getElementById('container'));
-				});
+				// If the database has not been checked update to goBackTo and call updateCache
+				updateCache(function(){
+					switch(cleanedHash){
+						case '': 		ReactDOM.render(<MainView />,document.getElementById('container'));		break;
+						case 'title': 	ReactDOM.render(<DetailView />,document.getElementById('container'));	break;
+						case 'settings':ReactDOM.render(<SettingsView />,document.getElementById('container')); break;
+					}
+				}.bind(cleanedHash));
 			break;
+			// Just in case it's something new and magical
 			default:
 				ReactDOM.render(<Error404 />,document.getElementById('container'));
 			break;
 		}
-	},1);
+	}
 };
 window.onhashchange = hashWatcher;
 
-/*
-	Global componentDidMount
 
-	This should be dropped in as the componentDidMount for all pages. It removed the loading class and fixes the screen 
-	position if needed. If a function requires a componentDidMount then it can have one as an anonymous function, but 
-	this should still be called in it.
+
+/*
+	compenentDidMount Global
+
+	This should be called by every reactClass, all it really does is remove the loading class from the body, as well as 
+	repositions the users browser window to put things back to how they were before they inspected a title.
 */
 var componentDidMountGlobal = function(){
+	
+	// remove the loading class from the body
 	document.body.className = '';
-	// If it's the homepage go back to the position we know, otherwise just go to top
-	if(_currentListPosition!=null && _currentListPosition!=undefined && window.location.hash.replace('#','')==''){
-		window.scroll(0,_currentListPosition);
+
+	// Clear the loading message, since it's only really used during the longer initial setup period
+	document.getElementById('loading-screen-message').innerHTML = '';
+
+	// If were on the listing view then scroll the user to where they were
+	if(window.location.hash=='' && scrollLock){
+		window.scroll(0,scrollPos);
 	}else{
 		window.scroll(0,0);
 	}
+	scrollLock = false;
 }
 
-/*
-	This is the initialzation function. This function will be called multiple times during the initial setup in order to 
-	get everything ready for the app to use. First it will check for a source and propt the user to select one (local or 
-	log in with dropbox depending on settings). After that it attempt to get/load the database (and the cover directory 
-	if using dropbox). On it's final call it will start the view process.
-*/
-function initialize(){
-
-	// First things first lets toss up the loading screen
-	document.body.className = 'loading';
-
-	// If the hash starts with an access_token then we should take care of that
-	if(window.location.hash.substr(0,13)=='#access_token'){
-		// Loop through the hash, break it up, and look for that access_token and it's value, it's gonna go into localStorage
-		var hash = window.location.hash.substr(1).split('&');
-		hash = hash[0].split('=');
-		localStorage['dropbox_access_token'] = hash[1];
-		// Re-call the init function now with the localStorage data is needs to get past this part
-		window.location.hash = 'load-dropbox';
-	}else
-
-	// Now lets see if we have a database_source set in the localStorage and if we have already asked for it, if not we need to ask
-	if(window.location.hash!='#select-source' && localStorage['database_source']==undefined){
-		window.location.hash = 'select-source';
-	}
-	
-	// otherwise just fire off the haswatcher function and let it do what it does
-	else{
-		hashWatcher();
-	}
-
-}
 
 /*
-	This function will make a couple calls to the dropbox API to get the database and covers directory locations. Once 
-	it has gathered all the details it needs it will clear the hash (which will call the main listing page).
+	Database Preperations
+
+	These function prepare viewer for the chosen database style before directing them to the homepage. Once they get to 
+	the homepage they will be loaded and the data cached/updated in the indexedDB for future use
 */
-function prepareDropbox(){
+// This makes a couple calls and grabs some data from the dropbox API (specifically were the file is located).
+function prepareDropbox(callback){
+
+	// Update the loading message
+	document.getElementById('loading-screen-message').innerHTML = 'Preparing to load from Dropbox...';
+
 	// We're going to make a AJAX call to the Dropboxv2 API
 	var r = new XMLHttpRequest();
 	r.addEventListener('load',function(){
@@ -233,7 +267,8 @@ function prepareDropbox(){
 					localStorage['covers_dir_path'] = data.matches[i].metadata.path_display.replace(/Database.gamepd$/i,'')+'Covers/';
 					localStorage['database_source'] = 'dropbox';
 					found = true;
-					window.location.hash = '';
+					_databasePreped = true;
+					updateCache(callback);
 				}
 			}
 			// In case we didn't find it lets toss an error
@@ -256,10 +291,13 @@ function prepareDropbox(){
 	r.setRequestHeader("Content-Type",'application/json');
 	r.send(JSON.stringify({'query':'Database.gamepd','path':''}));
 }
-/*
-	Preparing to load the static file is much simpler and simple check if it can find the file or not.
-*/
-function prepareStatic(){
+
+// This is just a simple AJAX check to ensure we can actually get that file.
+function prepareStatic(callback){
+	
+	// Update the loading message
+	document.getElementById('loading-screen-message').innerHTML = 'Preparing to load from the static database...';
+	
 	// Simple AJAX check to see if we can access the file, error if not, update if localStorage[database_source] is yes.
 	var r = new XMLHttpRequest();
 	r.addEventListener('load',function(){
@@ -267,7 +305,8 @@ function prepareStatic(){
 			localStorage['database_source'] = 'static';
 			localStorage['database_path'] = _source.static.file;
 			localStorage['covers_dir_path'] = _source.static.covers;
-			window.location.hash = '';
+			_databasePreped = true;
+			updateCache(callback);
 		}else{
 			alert('Unable to load pedia database. Check the console log for more information.');
 			console.log('There was an error loading the static database at "'+_source.static.file+'".');
@@ -278,12 +317,42 @@ function prepareStatic(){
 	r.send();
 }
 
+
+
 /*
-	This function will check if the DB is already loaded, and if not load it. It will return the DB object that can then 
-	be passed to the renderer.
+	Prepace (and Fill) Cache
+
+	Prepare is a bit of a minomer because the indexedDB database will have alraeedy been loaded or created at this point
+	but this does the SQL parts including taking data from the gamepedia SQL and loading it into the indexedDB for use.
 */
-function loadDatabase(callback){
-	if(_db.hasNotBeenLoaded==true){
+var updateCache = function(callback){
+
+	// First lets make sure we can cache things by checking that we have prepared
+	if(!_databasePreped){
+		switch(localStorage.database_source){
+			case 'dropbox':
+				prepareDropbox(callback);
+			break;
+			case 'static':
+				prepareStatic(callback);
+			break;
+			default:
+				alert('A totally unexpected error has occured. Check the console log for more details.');
+				console.log('Database source unknown, was expecting static or dropbox, but recived "'+localStorage.database_source+'". How about we don\'t mess with the localStorage values next time ok?')
+			break;
+		}
+
+	// Wait, if it's prepped did we alraedy update?
+	}else if(_databaseChecked){
+		if(typeof callback == 'function'){
+			callback();
+		}
+
+	// GUess not, we we are prepared and ready to go...
+	}else{
+
+		// Update the loading message
+		document.getElementById('loading-screen-message').innerHTML = 'Loading database...';
 
 		// If the database is not loaded lets do that
 		var call = localStorage['database_path'];
@@ -301,28 +370,70 @@ function loadDatabase(callback){
 		// Process the GET return
 		r.addEventListener('load',function(){
 
+			// Update the loading message
+			document.getElementById('loading-screen-message').innerHTML = 'Updating cache...';
+
 			// Prep and create the DB in PV.DB for future queries.
 			var preparedDB = new Uint8Array(this.response);
-			_db = new SQL.Database(preparedDB);
+			_sqlDB = new SQL.Database(preparedDB);
+
+			// Clear out the database so we can fill it with fresh data, unfortunetly since Gamepeida actually deteles recrods, this appears to the best best solution to removing deleted records. Bummer.
+			var clear = _indexedDB.database.transaction(['titles'],'readwrite').objectStore('titles');
+			clear.clear();
 
 			// Get the list of platforms, store them int PV.platforms, pass we will grab them from window later
-			_platforms = [];
-			var platforms = _db.exec('select `ZPLATFORM` from `ZENTRY` where `ZUID` < '+_pediaviewerConst.doghouseIDStart+' group by (`ZPLATFORM`) order by `ZPLATFORM`');
+			_extraDetails.platforms = [];
+			var platforms = _sqlDB.exec('select `ZPLATFORM` from `ZENTRY` where `ZUID` < '+_pediaviewerConst.doghouseIDStart+' group by (`ZPLATFORM`) order by `ZPLATFORM`');
 			for(var pn in platforms[0]['values']){
-				_platforms.push(platforms[0]['values'][pn][0]);
+				_extraDetails.platforms.push(platforms[0]['values'][pn][0]);
 			}
 
 			// Get the total title count
-			var query = _db.prepare('select count("a") as "entries" from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' group by("a") COLLATE NOCASE');
+			var query = _sqlDB.prepare('select count("a") as "entries" from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' group by("a") COLLATE NOCASE');
 			query.step();
-			_totalTitleCount = query.getAsObject().entries;
+			_extraDetails.titleCount = query.getAsObject().entries;
+			
+			// Get the ID of the last added title
+			var query = _sqlDB.prepare('select `ZUID`,`ZDATEADDED`,`ZTITLE` from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZUID` desc limit 1');
+			query.step();
+			_extraDetails.latestTitle = '#title-'+query.getAsObject().ZUID+'-'+query.getAsObject().ZTITLE.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/ +/g,'-');
+			
+			// Get every title that has been updated since the last update
+			var query = _sqlDB.prepare('select * from `ZENTRY` where `ZUID`<'+_pediaviewerConst.doghouseIDStart);
+			var requester = _indexedDB.database.transaction(['titles'],'readwrite').objectStore('titles');
+			var hasUpdate = false;
+			while(query.step()){
+				hasUpdate = true;
+				var store = query.getAsObject();
+				store.sortTitle = store.ZTITLE.toLowerCase().replace(/[^a-z0-9 ]/,'');
+				requester.put(store);
+			}
+			// Just in case, but it never happened it testing * crosses fingers *
+			requester.onerror = function(){
+				alert('There was a problem updating the database cache. Check the console.log for details.')
+				console.log('requester',requester)
+			}
 
+			// Store the last updated date in localStorage so we know the smaller sub-set to look against, flip the _databaseChecked state
+			localStorage.database_lastUpdate = new Date().getTime()-_pediaviewerConst.macEpochOffset;
+			_databaseChecked = true;
 
-			// IF we have a callback then call it
+			// Update the loading message and get rid of the SQL
+			if(hasUpdate){
+				document.getElementById('loading-screen-message').innerHTML = 'Cache update complete!';
+			}else{
+				document.getElementById('loading-screen-message').innerHTML = 'Cache up-to-date!';
+			}
+			_sqlDB = null;
+			SQL = null;
+
+			// 
+
+			// Direct the user back to the page they came from
 			if(typeof callback == 'function'){
 				callback();
 			}
-		
+
 		});
 		// make the files (GET) call
 		r.open('GET',call);
@@ -331,37 +442,18 @@ function loadDatabase(callback){
 		r.setRequestHeader("Authorization",'Bearer '+localStorage['dropbox_access_token']);
 		r.setRequestHeader("Dropbox-API-Arg",dropboxRequestHeader);
 		r.send();
-
-	// If the DB has already been loaded one then just fire the callback
-	}else{
-		if(typeof callback == 'function'){
-			callback();
-		}
 	}
 }
 
-/*
-	This is the 404 page, just a static page with a link to the home listing
-*/
-var Error404 = React.createClass({
-	render: function(){
-		return (<div>
-			<h1>Page Not found.</h1>
-			<p>
-				The requested page, {window.location.hash.substr(1).split(/-?\d+/)[0]}, could not be found.
-			</p>
-			<p>
-				Would like to go back to the <a href="#">home page</a> or reset things from the <a href="#settings">settings page</a>?
-			</p>
-		</div>);
-	},
-	componentDidMount: componentDidMountGlobal,
-});
 
 /*
-	If you haven't logged in the Dropbox (or we cleared it out) then we need a special link to get connected.
+	Select Source
+
+	If you haven't logged in the Dropbox (or we cleared it out) then we need a special link to get connected. If you 
+	don't want to do that you can select the static source, thats fine too.
 */
 var SelectSource = React.createClass({
+	componentDidMount: componentDidMountGlobal,
 	render: function(){
 
 		var staticSourceNote = '';
@@ -385,7 +477,7 @@ var SelectSource = React.createClass({
 				sync your database with dropbox.
 			</p>
 			<p className="source-link link-static">
-				 <a href="#load-static">Load Static Database</a>
+				 <a href="#prepare-static">Load Static Database</a>
 				 {staticSourceNote}
 			</p>
 			<p>
@@ -394,12 +486,14 @@ var SelectSource = React.createClass({
 			</p>
 		</div>);
 	},
-	componentDidMount: componentDidMountGlobal,
 });
 
+
+
 /*
-	This is the main container for the game listing it calls three sub-parts one of the filters, one for the actual 
-	listing, and one for the footer (w/ settings link in it among other things.)
+	Main Listing Views
+
+	The main listing view is broken into 3 parts, the container, the filters, and the list. 
 */
 var MainView = React.createClass({
 	// Set the inital state, this controls both the DB and the filters
@@ -412,7 +506,6 @@ var MainView = React.createClass({
 				'platform': '~All',
 				'list': '0,1',
 			},
-			'pg': _currentPage,
 		}
 
 		// Check the localStorage for some saved filters
@@ -435,31 +528,12 @@ var MainView = React.createClass({
 
 		// update the state, including reseting the page number
 		state.filters[e.target.id] = e.target.value;
-		state.pg = 1;
-		_currentPage = 1;
 
 		// Update the localStorage of the state
 		localStorage['current_filters'] = JSON.stringify(state.filters);
 		
 		// Finally set the state
-		_lastUpdateAttempt = Date.now();
 		this.setState(state);
-
-		// Wait the predetermined amount of time then try and render again, only the last one should fire
-		setTimeout(function(){
-			this.forceUpdate();
-		}.bind(this),_renderDelay);
-	},
-	
-	// Change the page for pagination, simple state update really
-	changePage: function(pg,total){
-		if(pg>0&&pg<=total){
-			var state = this.state
-			state['pg'] = pg;
-			_currentPage = pg;
-			window.scroll(0,0);
-			this.setState(state); 
-		}
 	},
 	
 	// The renderer, obviously, renders
@@ -467,17 +541,13 @@ var MainView = React.createClass({
 		return (<div>
 			<div id="list-view">
 				<Filter updateFilter={this.updateFilter} filters={this.state.filters} />
-				<List filters={this.state.filters} page={this.state.pg} />
+				<List filters={this.state.filters} />
 			</div>
-			<Pagination page={this.state.pg} changePage={this.changePage} filters={this.state.filters} />
 			<Footer />
 		</div>);
 	},
-	componentDidMount: componentDidMountGlobal,
 });
-/*
-	For the above, this is the filters set. The updateFilter function is in the GameList component
-*/
+
 var Filter = React.createClass({
 	render: function(){
 		return (<div id="filter-box">
@@ -489,7 +559,7 @@ var Filter = React.createClass({
 				Platform
 				<select ref="platform" id="platform" onChange={this.props.updateFilter} value={this.props.filters.platform} >
 					<option value="~All">All Platforms</option>
-					{_platforms.map(function(platform,n){
+					{_extraDetails.platforms.map(function(platform,n){
 						return (<option key={platform} value={platform}>{platform}</option>);
 					})} 
 				</select>
@@ -506,133 +576,355 @@ var Filter = React.createClass({
 		</div>);
 	},
 });
-/*
-	This contains the actual table listing out the items in it. Note that no all fiels are pulled only the ones were actually going to use, 
-	that should keep things cleaner on the listing.
-*/
+
+var _listContents = []; // The contents are stored outside of the class state so they don't have to be reloaded when the user returns to the listing page
 var List = React.createClass({
-	
-	// This will check if you are holding a modifier to open it in a new window.tab
-	openDetailsPage: function(event,result){
+	// A place to store each lines HTML
+	getInitialState: function(){
+		return {
+			'done':false,
+		}
+	},
 
-		// Figure out what the new hash is
-		var newHash = 'title-'+result.ZUID+'-'+result.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')
-		
-		// If a modifier was held new window it, otherwise just hash change.
-		if(event.ctrlKey || event.altKey || event.metaKey){
-			window.open(window.location.href.replace('#','')+'#'+newHash);
+	// This will look through the indexedDB, get the results, and check to see if they meet the filters
+	componentDidMount: function(){this.componentWillReceiveProps();},
+	componentWillReceiveProps: function(){
+		// Clear out the lines we currently have
+		_listContents = [];
+		this.setState({'done':false});
+
+		// Get the indexedDB
+		var objectStoreIndex = _indexedDB.database.transaction('titles').objectStore('titles').index('sortTitle');
+
+		// Create our expression for the search filter, then escape it
+		var expression = this.props.filters.search.toLowerCase().replace(/[^a-z0-9 ]/,'');
+		expression = expression.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+		// Loop through the DB, check the filters against them, then if they pass you can store them for looping
+		objectStoreIndex.openCursor().onsuccess = function(filters,e){
+
+			// Make sure we are still working with the current filter data
+			if(filters==JSON.stringify(this.props.filters)){
+
+				// Are we done yet?
+				if(e.target.result==null){
+					// Check if we are empty on lines, if so add a message one in
+					if(_listContents.length<=0){
+						_listContents.push(<li key="no-results-message" className="no-results">No results were found matching your current filter criteria.</li>)
+					}
+					// Update the state that were done
+					this.setState({'done':true});
+
+				// Ok so no then?
+				}else{
+					// Get the results in an easier to use way
+					var result = e.target.result.value
+					var add = true;
+
+					// Check the platform if it's not set to all
+					if(this.props.filters.platform!='~All'){
+						if(result.ZPLATFORM!=this.props.filters.platform){
+							add = false;
+						}
+					}
+
+					// Check the list you want
+					if(add & this.props.filters.list.split(',').indexOf(result.ZSTATUS+'')<0){
+						add = false;
+					}
+
+					// Use some regular expression testing for the name filter
+					if(add && this.props.filters.search!=''){
+						add = new RegExp(expression).test(result.sortTitle);
+					}
+
+					// Update the lines state if needed
+					if(add){
+						_listContents.push(<li key={String(result.ZUID)} className={result.ZCOMPLETED==1?'completed':''}>
+							<a href={'#title-'+result.ZUID+'-'+result.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')}>
+								<b>{result.ZTITLE}</b>
+								<i>{result.ZEDITION}</i>
+								<span className="plat">{result.ZPLATFORM}</span>
+								<div style={{'clear':'both'}}></div>
+							</a>
+						</li>);
+					}
+
+					// Continue to the next title
+					e.target.result.continue();
+				}				
+			}
+
+		}.bind(this,JSON.stringify(this.props.filters)); // Find the singified props, we compare them to the active ones to make sure we are onyl wokring on the newest filter data
+	},
+
+	// Once it's updated we can clear the lines back out
+	componentDidUpdate: function(){
+		this.setState({'done':false});
+	},
+
+	// The actual renderer, super simple stuff
+	render: function(){
+		return (<ul id="title-list">{_listContents}</ul>)
+	},
+
+	// Not every update to state warrents an update to the page, so this will limited when is rendered when...
+	shouldComponentUpdate: function(props,state){
+		// Check if the props have changes (meaning the filter changes)
+		if(this.props!=props){
+			this.setState({'done':'false'});
+		}
+
+		// return whatever the done state is.
+		if(_listContents.length==0){
+			return false;
 		}else{
-			window.location.hash = newHash;
+			if(state.done){
+				componentDidMountGlobal();
+				return true;
+			}else{
+				return false;
+			}
 		}
+	},
+});
 
+
+
+/*
+	Details View
+
+	This is the main page that all the title specific details will be in. This also does all the transformations to the 
+	data that are needed before display.
+*/
+var DetailView = React.createClass({
+	// A place to store each lines HTML
+	getInitialState: function(){
+		return {
+			'done':false,
+			'title': '',
+			'fields': [],
+			'cover': '',
+		}
 	},
 
+
+	// This will look through the indexedDB, get the results, and check to see if they meet the filters
+	componentWillMount: function(){
+		// Note that we are most assuradly not done and that we do not have any fields
+		this.setState({
+			'done': false,
+			'fields': [],
+		});
+
+		// Get the title ID from the hash
+		var titleID = parseInt(window.location.hash.match(/^#title-(\d+)-/)[1]);
+
+		// Get the indexedDB
+		var objectStoreRequest = _indexedDB.database.transaction('titles').objectStore('titles').get(titleID);
+
+		// Loop through the DB, check the filters against them, then if they pass you can store them for looping
+		objectStoreRequest.onsuccess = function(e){
+
+			// The data in question and a place to put it
+			var details = e.target.result;
+			var fieldTemp = [];
+
+			// loop through the data we have
+			Object.keys(details).map(function(key){
+
+				// Three important vars, the classes applies to the li, the key, and the value
+				var classes = [];
+				var dispKey = key;
+				var dispVal = details[key];
+
+				// Get the localStorage custom Field Names and parse them
+				var custom_field_names = localStorage.custom_field_names;
+				if(custom_field_names!=undefined){
+					try{
+						custom_field_names = JSON.parse(custom_field_names);
+					}catch(e){
+						custom_field_names = {};
+					}
+				}else{
+					custom_field_names = {};
+				}
+
+				// if the ket is in the _field_data use it, otherwise were going to exclude this row with a class
+				if(_fieldData[key]!=undefined){
+					dispKey = _fieldData[key].name;
+				}else{
+					classes.push('no-key hide-field');
+				}
+
+				// If it has a name but it's blank it must be a custom, check if they set one, update and add classes as needed.
+				if(custom_field_names[key]!=undefined && custom_field_names[key]!=''){
+					dispKey = custom_field_names[key];
+				}else if(_fieldData[key]==undefined || _fieldData[key].name==''){
+					if(custom_field_names.showWithoutNames!=undefined && custom_field_names.showWithoutNames==true){
+						dispKey = 'Custom '+key.substr(7).toLowerCase().replace(/(\d+)/,' $1').replace(/\b[a-z]/g,function(letter){return letter.toUpperCase();});
+					}else{
+						classes.push('no-key no-custom-value-key hide-field');							
+					}
+				}
+
+				// Check that ther eis a valid value, if not hide the row in the usual class manner
+				if(dispVal=='' || dispVal==null || dispVal==0){
+					classes.push('no-value hide-field');
+				}
+
+				// Alright now lets process the value and update it as needed.
+				if(_fieldData[key]!=undefined && dispVal!=null){
+					switch(_fieldData[key].display){
+						case 'boolean':
+							dispVal = (dispVal==1?'Yes':'No');
+						break;
+						case 'price':
+							dispVal = '$'+dispVal.replace(/^\$?/,'');
+						break;
+						case 'longtext':
+							dispVal = <div className="long-text">{dispVal}</div>;
+							classes.push('long-text');
+						break;
+						case 'date':
+						case 'datetime':
+							var d = new Date( (dispVal*1000)+_pediaviewerConst.macEpochOffset );
+							dispVal = d.toLocaleString();
+							if(_fieldData[key].display=='date'){ // remove the time, it's probably garbage anyway
+							//	dispVal = dispVal.replace(/, .,'');
+							}
+						break;
+						case 'cover':
+							dispVal = 'Images all all sorts of fucked right now';
+						break;
+						default:
+							// Everythign should be taken care of already.
+						break;
+					}
+				}
+
+				// Now lets add one more class for the utmost in styling flexibility
+				classes.push('col-'+key);
+
+				// And return the list item
+				fieldTemp.push(<li className={classes.join(' ')} key={'detail '+key}>
+					<b>{dispKey}</b>
+					<span>{dispVal}</span>
+				</li>)
+
+			});
+
+			// Update the state with the data
+			this.setState({
+				'done': true,
+				'title': <h1>{details.ZTITLE} <i>{details.ZEDITION}</i></h1>,
+				'fields': fieldTemp,
+			});
+
+		}.bind(this);
+	},
+
+	// The renderer, obviously, renders
 	render: function(){
+		return(<div id="details-container">
+			{this.state.title}
+			<ul className="detail-items">{this.state.fields}</ul>
+			<DetailCoverImage titleID={parseInt(window.location.hash.match(/^#title-(\d+)-/)[1])} />
+		</div>);
+	},
+	componentDidMount: componentDidMountGlobal,
+});
+
+var DetailCoverImage = React.createClass({
+	// Set the inital state, this controls both the DB and the filters
+	getInitialState: function(){
+		return {
+			'id': this.props.titleID,
+			'url': '',
+			'found': false,
+		};
+	},
+	componentWillMount: function(){
+
+		// Depending on the data source get the image URL
+		if(localStorage['database_source']=='dropbox'){
+
+			// Check if we have a URL in the state
+			var url = 'https://api.dropboxapi.com/2/files/get_temporary_link';
+			var dropboxRequestHeader = JSON.stringify({
+				'path': localStorage['covers_dir_path']+this.props.titleID+'.jpg'
+			});
 		
-		// I can't seem to find a built-in escape, so I guess I'll do something a little quick and ugly
-		var term = this.props.filters.search.replace(/([\[\]&_\\/%])/g,'\\$1');
-		var platform = this.props.filters.platform.replace(/([\[\]&_\\/%])/g,'\\$1');
-		var list = this.props.filters.list.replace(/([\[\]&_\\/%])/g,'\\$1');
+		// If not dropbox it must be static.
+		}else{
 
-		// Get the number of results per page
-		try{
-			var resultsPerPage = JSON.parse(localStorage['pagination']);
-			resultsPerPage = resultsPerPage.results_per_page
-		}catch(e){
-			// must have errored, probably not there, use the default
-			var resultsPerPage = 50;
+			// Check if we have a URL in the state
+			var url = localStorage['covers_dir_path']+this.props.titleID+'.jpg';
+			this.setState({'url':url});
+
 		}
 
-		// Prepare the DB call, turn the results into something we can map
-		var query = _db.prepare('select `ZUID`,`ZCOMPLETED`,`ZTITLE`,`ZEDITION`,`ZPLATFORM` from `ZENTRY` where `ZTITLE` like "%'+term+'%" escape "\\" '+(platform!='~All'?' and  `ZPLATFORM` = "'+platform+'"':'')+' and `ZSTATUS` in('+list+') and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZTITLE` COLLATE NOCASE limit '+((this.props.page-1)*resultsPerPage)+', '+resultsPerPage);
-		var results = [];
-		while(query.step()){
-			results.push( query.getAsObject( ));
-    	}
+		// Use a touch of ajax to check for the image
+		var r = new XMLHttpRequest();
+		r.addEventListener('load',function(call){
 
-    	// Resnder out a no results found message
-    	if(results.length==0){
-	        // return the list
-			return (<ul id="title-list">
-				<li className="no-results">No results were found matching your current filter criteria.</li>
-			</ul>);
-		// do the normal results render
-    	}else{
-	        // return the list
-			return (<ul id="title-list" className={this.props.filters.platform!='~All'?'platformed':''} >
-				{results.map(function(result){
-					return (<li key={String(result.ZUID)} className={result.ZCOMPLETED==1?'completed':''}>
-						<a href={'#title-'+result.ZUID+'-'+result.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')}>
-							<b>{result.ZTITLE}</b>
-							<i>{result.ZEDITION}</i>
-							<span className="plat">{result.ZPLATFORM}</span>
-							<div style={{'clear':'both'}}></div>
-						</a>
-					</li>)
-				}.bind(this))}
-			</ul>);
-    	}
+			// Update the state with the results
+			if(call.target.readyState==4 && call.target.status==200){
+				
+				// Handling the dropbox response it a bit different
+				if(localStorage.database_source=='dropbox'){
+					
+					// Try and decode, if it isn't decoding assume it's an error
+					try{
+						var res = JSON.parse(call.target.response);
+						this.setState({'url':res.link});
+						this.setState({'found':true});
+					}catch(e){
+						this.setState({'found':false});
+					}
+
+				// If it's not dropbox is must be static and static is simple
+				}else{
+					this.setState({'found':true});
+				}
+			
+			// If we didn't get the ol' 200 back we know it ain't gonna work
+			}else{
+				this.setState({'found':false});
+			}
+
+		}.bind(this));
+		r.open('POST',url);
+		// These header will be all borked if your loading from a local source, but thats OK, the local source won't care.
+		r.setRequestHeader("Authorization",'Bearer '+localStorage['dropbox_access_token']);
+		r.setRequestHeader("Content-Type",'application/json');
+		r.send(dropboxRequestHeader);
+
 	},
-	shouldComponentUpdate: _preventRapidUpdates,
+
+	render:function(){
+
+		// Only return if it was found 
+		if(this.state.found){
+			return (<div>
+				<img src={this.state.url} alt="Cover Image" className="cover-image" />
+			</div>)
+		
+		// Well, i mean, react wants _something_
+		}else{
+			return (<div></div>);
+		}
+
+	}
 });
 
-/*
-	The footer, used on both the list and details view, at the bottom.
-*/
-var Footer = React.createClass({
-	render: function(){
 
-		// Get the last title added (for funsies)
-		var query = _db.prepare('select * from `ZENTRY` where `ZSTATUS` in(0,1) and `ZUID`<'+_pediaviewerConst.doghouseIDStart+' order by `ZUID` desc limit 1');
-		query.step();
-		var latestTitle = query.getAsObject();//.entries;
-
-		// REturn the stimple footer
-		return (<div id="footer">
-			<p className="entries-line">Currently {_totalTitleCount} in collection.</p>
-			<p className="nav-links">
-				<a href="#" className="footer-link">Main List</a>
-				 &ndash; 
-				<a href="#settings" className="footer-link">Settings</a>
-				 &ndash; 
-				<a href={'#title-'+latestTitle.ZUID+'-'+latestTitle.ZTITLE.toLowerCase().replace(/[^\d\w]+/g,'-')} className="footer-link">Latest Entry</a>
-			</p>
-			<p><a href="https://github.com/pgooch/GamepediaViewer" className="github-link" target="_blank">Fork Gamepedia Viewer on GitHub.</a></p>
-		</div>);
-	},
-	shouldComponentUpdate: function(){return false},
-});
 
 /*
-	The footer, used on both the list and details view, at the bottom.
-*/
-var Pagination = React.createClass({
-	render: function(){
+	Settings view
 
-		// Determine the number of pages in the current filter, bits ripped from the main list renderer
-		var term = this.props.filters.search.replace(/([\[\]&_\\/%])/g,'\\$1');
-		var platform = this.props.filters.platform.replace(/([\[\]&_\\/%])/g,'\\$1');
-		var list = this.props.filters.list.replace(/([\[\]&_\\/%])/g,'\\$1');
-		var query = _db.prepare('select count("a") as "entries" from `ZENTRY` where `ZTITLE` like "%'+term+'%" escape "\\" '+(platform!='~All'?' and  `ZPLATFORM` = "'+platform+'"':'')+' and `ZSTATUS` in('+list+') and `ZUID`<'+_pediaviewerConst.doghouseIDStart);
-		query.step();
-		var filteredResults = query.getAsObject().entries;
-
-		// Determine the total number of pages
-		var _totalPages = Math.ceil(filteredResults/_resultsPerPage);
-
-		// Return
-		return (<div id="pagination">
-			<span onClick={()=>this.props.changePage(this.props.page-1,_totalPages)} className={'pagination-link prev '+(this.props.page<=1?'disable':'')}>Prev</span>
-			<span className="pagination-line">Page {this.props.page} of {Math.max(1,_totalPages)}</span>
-			<span onClick={()=>this.props.changePage(this.props.page+1,_totalPages)} className={'pagination-link next '+(this.props.page>=_totalPages?'disable':'')}>Next</span>
-			<div style={{clear:'both'}}></div>
-		</div>);
-	},
-	shouldComponentUpdate: _preventRapidUpdates,
-});
-
-/*
-	This is the options page view
+	This is the page that allows you to change a few things on the viewer. All changes are saved in localStorage and 
+	loaded when they are actually needed later.
 */
 var SettingsView = React.createClass({
 	
@@ -727,17 +1019,6 @@ var SettingsView = React.createClass({
 				</label>
 			</div>
 
-			<h2>Pagination</h2>
-			<p className="setting-note">
-				How many results show per page. This number can be set to something artifically high to show everything on a single page, however mobile devices tend to become unstable with higher values
-			</p>
-			<div className="settings-fields">
-				<label htmlFor="pagination-results_per_page">
-					Results Per Page
-					<input type="number" min="1" step="1" name="pagination-results_per_page" id="pagination-results_per_page" defaultValue={(this.state.pagination==undefined?50:this.state.pagination.results_per_page)} onChange={this.updateSettings} />
-				</label>
-			</div>
-
 			<h2>Change Data Source</h2>
 			<p className="setting-note">
 				If you would like to chage the data source from the currently selected {localStorage.database_source} one you can do so by click the button below.
@@ -757,209 +1038,51 @@ var SettingsView = React.createClass({
 	componentDidMount: componentDidMountGlobal,
 });
 
+
+
 /*
-	This is the view for a specific titles details page
+	The footer
+
+	This is loaded by all the viewer pages (not the pre-setup type pages, just the listing/details/settings ones)
 */
-var DetailView = React.createClass({
-	// The renderer, obviously, renders
+var Footer = React.createClass({
 	render: function(){
-
-		//Using the ID in the hash load all the details for the specific entry.
-		var query = _db.prepare('select * from `ZENTRY` where `ZUID` = '+window.location.hash.match(/-(\d+)-/)[1]);
-		query.step();
-		var details = query.getAsObject( );
-
-		// Were going to use a key in the DB to determine if we found a title, this should at least exist, so if it's missing the title is not in the DB
-		if(details.Z_PK==undefined){
-			return (<div id="details-container">
-				<h1>404<i>Could not find the requested title.</i></h1>
-				<Footer />
-			</div>);
-
-		// Key exists so the title is in the DB
-		}else{
-
-			// Bulk of the display work is dont in the return
-			return (<div id="details-container">
-				<h1>{details.ZTITLE} <i>{details.ZEDITION}</i></h1>
-				<ul className="detail-items">
-					{Object.keys(details).map(function(key){
-
-						// Three important vars, the classes applies to the li, the key, and the value
-						var classes = [];
-						var dispKey = key;
-						var dispVal = details[key];
-
-						// Get the localStorage custom Field Names and parse them
-						var custom_field_names = localStorage.custom_field_names;
-						if(custom_field_names!=undefined){
-							try{
-								custom_field_names = JSON.parse(custom_field_names);
-							}catch(e){
-								custom_field_names = {};
-							}
-						}else{
-							custom_field_names = {};
-						}
-
-						// if the ket is in the _field_data use it, otherwise were going to exclude this row with a class
-						if(_fieldData[key]!=undefined){
-							dispKey = _fieldData[key].name;
-						}else{
-							classes.push('no-key hide-field');
-						}
-
-						// If it has a name but it's blank it must be a custom, check if they set one, update and add classes as needed.
-						if(custom_field_names[key]!=undefined && custom_field_names[key]!=''){
-							dispKey = custom_field_names[key];
-						}else if(_fieldData[key]==undefined || _fieldData[key].name==''){
-							if(custom_field_names.showWithoutNames!=undefined && custom_field_names.showWithoutNames==true){
-								dispKey = 'Custom '+key.substr(7).toLowerCase().replace(/(\d+)/,' $1').replace(/\b[a-z]/g,function(letter){return letter.toUpperCase();});
-							}else{
-								classes.push('no-key no-custom-value-key hide-field');							
-							}
-						}
-
-						// Check that ther eis a valid value, if not hide the row in the usual class manner
-						if(dispVal=='' || dispVal==null || dispVal==0){
-							classes.push('no-value hide-field');
-						}
-
-						// Alright now lets process the value and update it as needed.
-						if(_fieldData[key]!=undefined && dispVal!=null){
-							switch(_fieldData[key].display){
-								case 'boolean':
-									dispVal = (dispVal==1?'Yes':'No');
-								break;
-								case 'price':
-									dispVal = '$'+dispVal.replace(/^\$?/,'');
-								break;
-								case 'longtext':
-									dispVal = <div className="long-text">{dispVal}</div>;
-									classes.push('long-text');
-								break;
-								case 'date':
-								case 'datetime':
-									var d = new Date( (dispVal*1000)+_pediaviewerConst.macEpochOffset );
-									dispVal = d.toLocaleString();
-									if(_fieldData[key].display=='date'){ // remove the time, it's probably garbage anyway
-										dispVal = dispVal.replace(/, .*/,'');
-									}
-								break;
-								case 'cover':
-									dispVal = 'Images all all sorts of fucked right now';
-								break;
-								default:
-									// Everythign should be taken care of already.
-								break;
-							}
-						}
-
-						// Now lets add one more class for the utmost in styling flexibility
-						classes.push('col-'+key);
-
-						// And return the list item
-						return <li className={classes.join(' ')} key={'detail '+key}>
-							<b>{dispKey}</b>
-							<span>{dispVal}</span>
-						</li>
-
-					})}
-				</ul>
-				<DetailCoverImage titleID={window.location.hash.match(/-(\d+)-/)[1]} />
-
-				<Footer />
-			</div>);
-
-		}
+		return (<div id="footer">
+			<p className="entries-line">Currently {_extraDetails.titleCount} in collection.</p>
+			<p className="nav-links">
+				<a href="#" className="footer-link">Main List</a>
+				 &ndash; 
+				<a href="#settings" className="footer-link">Settings</a>
+				 &ndash; 
+				<a href={_extraDetails.latestTitle} className="footer-link">Latest Entry</a>
+			</p>
+			<p><a href="https://github.com/pgooch/GamepediaViewer" className="github-link" target="_blank">Fork Gamepedia Viewer on GitHub.</a></p>
+		</div>);
 	},
-	componentDidMount: componentDidMountGlobal,
+	// No need to update this, it never changes
+	shouldComponentUpdate: function(){return false},
 });
+
+
+
 /*
-	Far the above, just return an appropriate cover image depending source and availability.
+	Lets Get This Party Started! Init Function away...
 */
-var DetailCoverImage = React.createClass({
-	// Set the inital state, this controls both the DB and the filters
-	getInitialState: function(){
-		return {
-			'id': this.props.titleID,
-			'url': '',
-			'found': false,
-		};
-	},
-	componentWillMount: function(){
+function init(){
 
-		// Depending on the data source get the image URL
-		if(localStorage['database_source']=='dropbox'){
-
-			// Check if we have a URL in the state
-			var url = 'https://api.dropboxapi.com/2/files/get_temporary_link';
-			var dropboxRequestHeader = JSON.stringify({
-				'path': localStorage['covers_dir_path']+this.props.titleID+'.jpg'
-			});
-		
-		// If not dropbox it must be static.
-		}else{
-
-			// Check if we have a URL in the state
-			var url = localStorage['covers_dir_path']+this.props.titleID+'.jpg';
-			this.setState({'url':url});
-
-		}
-
-		// Use a touch of ajax to check for the image
-		var r = new XMLHttpRequest();
-		r.addEventListener('load',function(call){
-
-			// Update the state with the results
-			if(call.target.readyState==4 && call.target.status==200){
-				
-				// Handling the dropbox response it a bit different
-				if(localStorage.database_source=='dropbox'){
-					
-					// Try and decode, if it isn't decoding assume it's an error
-					try{
-						var res = JSON.parse(call.target.response);
-						this.setState({'url':res.link});
-						this.setState({'found':true});
-					}catch(e){
-						this.setState({'found':false});
-					}
-
-				// If it's not dropbox is must be static and static is simple
-				}else{
-					this.setState({'found':true});
-				}
-			
-			// If we didn't get the ol' 200 back we know it ain't gonna work
-			}else{
-				this.setState({'found':false});
-			}
-
-		}.bind(this));
-		r.open('POST',url);
-		// These header will be all borked if your loading from a local source, but thats OK, the local source won't care.
-		r.setRequestHeader("Authorization",'Bearer '+localStorage['dropbox_access_token']);
-		r.setRequestHeader("Content-Type",'application/json');
-		r.send(dropboxRequestHeader);
-
-	},
-
-	render:function(){
-
-		// Only return if it was found 
-		if(this.state.found){
-			return (<div>
-				<img src={this.state.url} alt="Cover Image" className="cover-image" />
-			</div>)
-		
-		// Well, i mean, react wants _something_
-		}else{
-			return (<div></div>);
-		}
-
+	// Load the localStorage extraDetails and update the _extraDetails global with the last saved data (this is in case we can't load new data because we don't have a connection).
+	if(localStorage.extraDetails!=undefined){
+		_extraDetails = JSON.parse(localStorage.extraDetails);
 	}
-});
 
-// Now that were done with all the code lets start.
-initialize();
+	// Load the last database update time
+	if(localStorage.database_lastUpdate!=undefined){
+		_indexedDBDetails.lastUpdated = parseInt(localStorage.database_lastUpdate)
+	}
+
+	// Fire the hash watcher, which does all hash related things.
+	hashWatcher();
+
+};
+
+

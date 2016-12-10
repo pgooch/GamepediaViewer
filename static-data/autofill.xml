@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>custom6</key>
+	<array>
+		<string>SLUS-00542 94009</string>
+		<string>SLUS-01441</string>
+	</array>
+	<key>developer</key>
+	<array>
+		<string>Bioware</string>
+		<string>Bungie</string>
+		<string>Rare</string>
+		<string>Rebellion</string>
+		<string>Square</string>
+	</array>
+	<key>difficulty</key>
+	<array>
+		<string>Kid</string>
+		<string>Easy</string>
+		<string>Normal</string>
+		<string>Hard</string>
+		<string>Master</string>
+	</array>
+	<key>format</key>
+	<array>
+		<string>CD-ROM</string>
+	</array>
+	<key>genre</key>
+	<array>
+		<string>Action</string>
+		<string>Adventure</string>
+		<string>Board Games</string>
+		<string>Cards &amp; Casion</string>
+		<string>Fantasy</string>
+		<string>Fighting</string>
+		<string>Horror</string>
+		<string>Kids</string>
+		<string>Massively Multiplayer</string>
+		<string>Military &amp; Espionage</string>
+		<string>Online</string>
+		<string>Puzzle games</string>
+		<string>Racing &amp; Flying</string>
+		<string>Retro Gaming &amp; Microconsoles</string>
+		<string>Role-Playing</string>
+		<string>Sci-Fi</string>
+		<string>Shooter</string>
+		<string>Simulation</string>
+		<string>Sports &amp; Outdoors</string>
+		<string>Strategy</string>
+	</array>
+	<key>multiplayer</key>
+	<array>
+		<string>Direct Link</string>
+		<string>Live</string>
+		<string>Online</string>
+		<string>Split Screen</string>
+		<string>Wireless</string>
+	</array>
+	<key>numberOfPlayers</key>
+	<array>
+		<string>1</string>
+		<string>2</string>
+		<string>4</string>
+		<string>8</string>
+		<string>16</string>
+		<string>32</string>
+	</array>
+	<key>platform</key>
+	<array>
+		<string>3DO</string>
+		<string>AmigaOS</string>
+		<string>Atari 2600</string>
+		<string>Atari Jaguar</string>
+		<string>Atari Lynx</string>
+		<string>Board Game</string>
+		<string>CD-i</string>
+		<string>ColecoVision</string>
+		<string>Commodore 64</string>
+		<string>Dreamcast</string>
+		<string>Game Boy</string>
+		<string>Game Boy Advance</string>
+		<string>Game Boy Color</string>
+		<string>iOS</string>
+		<string>Linux</string>
+		<string>Macintosh</string>
+		<string>N-Gage</string>
+		<string>Neo Geo</string>
+		<string>Neo Geo Pocket Color</string>
+		<string>NES</string>
+		<string>Nintendo 64</string>
+		<string>Nintendo DS</string>
+		<string>Nintendo GameCube</string>
+		<string>PlayStation</string>
+		<string>PlayStation 2</string>
+		<string>PlayStation 3</string>
+		<string>PSP</string>
+		<string>Sega 32X</string>
+		<string>Sega CD</string>
+		<string>Sega Game Gear</string>
+		<string>Sega Genesis</string>
+		<string>Sega Master System</string>
+		<string>Sega Saturn</string>
+		<string>SNES</string>
+		<string>TurboGrafx-16</string>
+		<string>Virtual Boy</string>
+		<string>Wii</string>
+		<string>Windows</string>
+		<string>Xbox</string>
+		<string>Xbox 360</string>
+	</array>
+	<key>publisher</key>
+	<array>
+		<string>EA</string>
+		<string>Mac Soft</string>
+		<string>Microsoft</string>
+		<string>Nintendo</string>
+		<string>Psygnosis</string>
+		<string>UBI Soft</string>
+	</array>
+	<key>purchasedAt</key>
+	<array>
+		<string>Amazon</string>
+		<string>Electronic Boutique</string>
+		<string>Goodwill</string>
+	</array>
+	<key>rated</key>
+	<array>
+		<string>Adults Only</string>
+		<string>Early Childhood</string>
+		<string>Everyone</string>
+		<string>Everyone 10+</string>
+		<string>Mature</string>
+		<string>Rating Pending</string>
+		<string>Teen</string>
+	</array>
+</dict>
+</plist>

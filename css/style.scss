@@ -70,8 +70,8 @@ body.loading{
 	position: fixed;
 	z-index: 9001;
 	top:0; right:0; bottom:0; left:0;
-	background-color: transparentize($c-background,.25);
-	> div{
+	background-color: $c-background;// transparentize($c-background,.25);
+	> div.load-anim-el{
 		width:0px;
 		height:0px;
 		border:100px solid orange; // should be yellow naturally
@@ -90,7 +90,13 @@ body.loading{
 	    &.pac-b{
 			animation-name: loading-b;
 	    }
-
+	}
+	#loading-screen-message{
+	    text-align: center;
+	    position: fixed;
+	    top: 50%;
+	    width: 100%;
+	    margin-top: 110px;
 	}
 }
 @keyframes loading-a{
